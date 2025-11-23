@@ -1,0 +1,238 @@
+.container {
+  padding: 40px;
+  min-height: 100vh;
+  background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=2100&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  background-size: cover;
+  background-position: center;
+  color: #f0f0f0;
+}
+
+.pageContainer {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 40px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 100%;
+  max-width: 1200px;
+  margin: auto;
+  position: relative;
+  color: #f0f0f0;
+}
+
+.backButtonContainer {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #f0f0f0;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.backButton:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+  text-align: center;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+  padding-top: 40px; /* Add padding to avoid overlap with back button */
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.addButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2c7a7b;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.addButton:hover {
+  background: #285e61;
+  transform: translateY(-2px);
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.productTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.productTable th, .productTable td {
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  vertical-align: middle;
+}
+
+.productTable th {
+  font-weight: 600;
+}
+
+.productImage {
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.actionButtons button {
+  background: none;
+  border: none;
+  color: #f0f0f0;
+  cursor: pointer;
+  margin-right: 10px;
+  font-size: 1.1rem;
+}
+
+.actionButtons button:hover {
+  color: #2c7a7b;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 100%;
+  max-width: 400px;
+}
+
+.modalTitle {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.formGroup input, .formGroup textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f0f0f0;
+  font-size: 1rem;
+}
+
+.formGroup input[type="file"] {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.formGroup input[type="file"]::file-selector-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2c7a7b;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.formGroup input[type="file"]::file-selector-button:hover {
+  background: #285e61;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancelButton, .saveButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancelButton {
+  background: #718096;
+  color: white;
+}
+
+.cancelButton:hover {
+  background: #4a5568;
+}
+
+.saveButton {
+  background: #2c7a7b;
+  color: white;
+}
+
+.saveButton:hover {
+  background: #285e61;
+}
+
+.status {
+  padding: 5px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  display: inline-block;
+}
+
+.ongoing {
+  background-color: rgba(56, 161, 105, 0.2);
+  color: #38a169;
+}
+
+.late {
+  background-color: rgba(229, 62, 62, 0.2);
+  color: #e53e3e;
+}
