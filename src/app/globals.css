@@ -11,8 +11,8 @@
 
 body {
   font-family: 'Poppins', sans-serif;
-  background: #000;
-  color: #fff;
+  background: #fff;
+  color: #333;
   min-height: 100vh;
   display: flex;
   justify-content: center;

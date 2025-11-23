@@ -6,7 +6,7 @@ import { useEffect } from "react"
 import styles from "./dashboard.module.css"
 import { FaBoxOpen, FaFileInvoice, FaCog, FaUsersCog, FaUserShield } from "react-icons/fa"
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children, centerContent = false }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }) {
         </div>
       </aside>
 
-      <main className={styles.dashboardContent}>
+      <main className={`${styles.dashboardContent} ${centerContent ? styles.dashboardContentCentered : ''}`}>
         {children}
       </main>
     </div>

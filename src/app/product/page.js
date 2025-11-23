@@ -73,10 +73,12 @@ export default function ProductDevelopmentPage() {
       if (result.success) {
         imageUrl = result.url;
       } else {
-        // Handle upload error
-        console.error("Image upload failed");
-        return;
+        console.error("Image upload failed:", result.message || "Unknown error");
+        imageUrl = "/file.svg"; // Use a default placeholder image
       }
+    } else if (typeof formData.image === 'string' && formData.image.startsWith('blob:')) {
+      // If it's a blob URL (from URL.createObjectURL), replace with placeholder as blob URLs are temporary.
+      imageUrl = "/file.svg";
     }
 
     const productData = { ...formData, image: imageUrl };
@@ -197,8 +199,8 @@ export default function ProductDevelopmentPage() {
               </div>
               <div className={styles.formGroup}>
                 <label>Gambar Produk</label>
-                <input type="file" name="image" onChange={handleInputChange} />
-                {imagePreview && <Image src={imagePreview} alt="Preview" width={100} height={100} style={{ marginTop: '10px' }} />}
+                <input type="file" name="image" onChange={handleFileChange} />
+                {imagePreview && <Image src={imagePreview} alt="Preview" width={100} height={100} style={{ marginTop: '10px' }} unoptimized={true} />}
               </div>
               <div className={styles.modalActions}>
                 <button type="button" onClick={closeModal} className={styles.cancelButton}>Batal</button>
