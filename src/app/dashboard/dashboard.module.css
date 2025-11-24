@@ -157,17 +157,29 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
 }
 
 .productItem {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 15px;
   background: #fff; /* White background */
   padding: 15px;
   border-radius: 10px;
   transition: all 0.3s ease;
+}
+
+.productMainInfo {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 15px;
+  flex-grow: 1;
+  cursor: pointer;
 }
 
 .productItem:hover {
@@ -289,13 +301,23 @@
   color: #e53e3e;
 }
 
-/* This can be removed if you are not using a separate lateTag class */
-.lateTag {
-  background-color: #e53e3e; /* Red background */
-  color: white;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-left: auto; /* Push to the right */
+.productActions {
+  display: flex;
+  align-items: center;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.deleteButton:hover {
+  color: #e53e3e;
+  background: rgba(229, 62, 62, 0.1);
 }

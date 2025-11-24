@@ -6,26 +6,27 @@ import styles from "./product-development.module.css";
 import { FaArrowLeft, FaEdit, FaTrash } from "react-icons/fa";
 
 export default function ProductDevelopmentPage() {
-  const [products, setProducts] = useState([]); // Initialize with empty array
+  const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: "", sku: "", category: "", description: "", images: [], startDate: "", deadline: "" });
   const [imagePreviews, setImagePreviews] = useState([]);
+  const today = new Date().toISOString().split('T')[0];
+
+  async function fetchProducts() {
+    try {
+      const res = await fetch('/api/products');
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      setProducts(data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setProducts([]);
+    }
+  }
 
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const res = await fetch('/api/products');
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const data = await res.json();
-        setProducts(data);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        // Fallback to initialProducts or empty array if API fails
-        setProducts([]);
-      }
-    }
     fetchProducts();
   }, []);
 
@@ -57,7 +58,6 @@ export default function ProductDevelopmentPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Create a single FormData object for everything
     const data = new FormData();
     data.append('name', formData.name);
     data.append('sku', formData.sku);
@@ -66,7 +66,6 @@ export default function ProductDevelopmentPage() {
     data.append('startDate', formData.startDate);
     data.append('deadline', formData.deadline);
 
-    // Append all selected files
     for (const image of formData.images) {
       if (image instanceof File) {
         data.append('images', image);
@@ -76,21 +75,26 @@ export default function ProductDevelopmentPage() {
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
-        // The 'Content-Type' header is automatically set by the browser
-        // to 'multipart/form-data' when the body is a FormData object.
-        // Do NOT set it manually.
         body: data,
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+        let errorMessage = `HTTP error! status: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          try {
+            const errorText = await res.text();
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            // Fallback
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      // Re-fetch products to update the list with the new entry
-      const fetchRes = await fetch('/api/products');
-      const updatedProducts = await fetchRes.json();
-      setProducts(updatedProducts);
+      await fetchProducts();
 
     } catch (error) {
       console.error("Error adding product:", error);
@@ -106,8 +110,26 @@ export default function ProductDevelopmentPage() {
     openModal();
   };
 
-  const handleDelete = (id) => {
-    setProducts(products.filter(p => p.id !== id));
+  const handleDelete = async (productId) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Gagal menghapus produk');
+      }
+
+      await fetchProducts();
+
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
   };
 
   return (
@@ -153,7 +175,7 @@ export default function ProductDevelopmentPage() {
                   <td>
                     <div className={styles.productImageContainer}>
                       {product.images && product.images.map((imgSrc, index) => (
-                        <Image key={index} src={imgSrc} alt={`${product.name} ${index + 1}`} width={50} height={50} className={styles.productImage} unoptimized={true} />
+                        <img key={index} src={imgSrc} alt={`${product.name} ${index + 1}`} width={50} height={50} className={styles.productImage} />
                       ))}
                     </div>
                   </td>
@@ -202,11 +224,11 @@ export default function ProductDevelopmentPage() {
               </div>
               <div className={styles.formGroup}>
                 <label>Tanggal Mulai</label>
-                <input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required />
+                <input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required min={today} />
               </div>
               <div className={styles.formGroup}>
                 <label>Deadline</label>
-                <input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required />
+                <input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required max="2099-12-31" />
               </div>
               <div className={styles.formGroup}>
                 <label>Gambar Produk</label>

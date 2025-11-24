@@ -56,17 +56,16 @@ export async function GET() {
 
 export async function POST(req) {
   let connection;
-  try {
-    const formData = await req.formData();
-    
-    const name = formData.get('name');
-    const sku = formData.get('sku');
-    const category = formData.get('category');
-    const description = formData.get('description');
-    const startDate = formData.get('startDate');
-    const deadline = formData.get('deadline');
-    const images = formData.getAll('images');
+  const formData = await req.formData();
+  const name = formData.get('name');
+  const sku = formData.get('sku');
+  const category = formData.get('category');
+  const description = formData.get('description');
+  const startDate = formData.get('startDate');
+  const deadline = formData.get('deadline');
+  const images = formData.getAll('images');
 
+  try {
     if (!name || !sku) {
       return NextResponse.json({ message: 'Name and SKU are required' }, { status: 400 });
     }
@@ -111,7 +110,13 @@ export async function POST(req) {
       await connection.rollback();
     }
     console.error('Failed to process POST request:', error);
-    return NextResponse.json({ message: 'Failed to add product', error: error.message }, { status: 500 });
+
+    // Check for duplicate entry error
+    if (error.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json({ message: `SKU '${sku}' sudah ada. Silakan gunakan SKU yang lain.` }, { status: 409 });
+    }
+
+    return NextResponse.json({ message: 'Gagal menambahkan produk', error: error.message }, { status: 500 });
   } finally {
     if (connection) {
       await connection.end();

@@ -1,68 +1,50 @@
-import connectDB from '@/app/lib/db';
-import Product from '@/app/models/Product';
+// jalin-alam/src/app/api/products/[id]/route.js
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import mysql from 'mysql2/promise';
 
-export async function GET(request, { params }) {
-  const { id } = params;
-  await connectDB();
-
-  try {
-    const product = await Product.findById(id);
-    if (!product) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, data: product });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-  }
-}
-
-export async function PUT(request, { params }) {
-  const session = await getServerSession(authOptions);
-  const role = session?.user?.role;
-
-  if (role !== 'admin' && role !== 'direktur') {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
-  }
-
-  const { id } = params;
-  await connectDB();
-
-  try {
-    const body = await request.json();
-    const product = await Product.findByIdAndUpdate(id, body, {
-      new: true,
-      runValidators: true,
-    });
-    if (!product) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, data: product });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-  }
-}
+// Database connection configuration
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'jalin_alam_db',
+};
 
 export async function DELETE(request, { params }) {
-  const session = await getServerSession(authOptions);
-  const role = session?.user?.role;
-
-  if (role !== 'admin' && role !== 'direktur') {
-    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
+  const { id } = params;
+  
+  if (!id) {
+    return NextResponse.json({ message: 'Product ID is required' }, { status: 400 });
   }
 
-  const { id } = params;
-  await connectDB();
-
+  let connection;
   try {
-    const deletedProduct = await Product.deleteOne({ _id: id });
-    if (deletedProduct.deletedCount === 0) {
-      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+    connection = await mysql.createConnection(dbConfig);
+    await connection.beginTransaction();
+
+    // First, delete associated images from the product_images table
+    await connection.execute('DELETE FROM product_images WHERE product_id = ?', [id]);
+
+    // Second, delete the product from the products table
+    const [result] = await connection.execute('DELETE FROM products WHERE id = ?', [id]);
+
+    await connection.commit();
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ message: 'Product not found' }, { status: 404 });
     }
-    return NextResponse.json({ success: true, data: {} });
+
+    return NextResponse.json({ message: 'Product deleted successfully' }, { status: 200 });
+
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Database query failed during DELETE:', error);
+    return NextResponse.json({ message: 'Failed to delete product', error: error.message }, { status: 500 });
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
   }
 }
