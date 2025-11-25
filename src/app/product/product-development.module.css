@@ -8,7 +8,7 @@
 }
 
 .pageContainer {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.8); /* Increased opacity for better readability */
   backdrop-filter: blur(10px);
   padding: 40px;
   border-radius: 16px;
@@ -18,6 +18,9 @@
   margin: auto;
   position: relative;
   color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Make it fill the parent's height */
 }
 
 .backButtonContainer {
@@ -53,7 +56,8 @@
 
 .toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -76,7 +80,9 @@
 }
 
 .tableContainer {
-  overflow-x: auto;
+  overflow: auto; /* Use 'auto' for both x and y */
+  flex-grow: 1; /* Allow this container to fill remaining space */
+  min-height: 0; /* Important for flex-grow in a scrolling container */
 }
 
 .productTable {
@@ -93,6 +99,7 @@
 
 .productTable th {
   font-weight: 600;
+  text-align: center; /* Center the table headers */
 }
 
 .productImage {
@@ -251,4 +258,81 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
+}
+
+/* Sort Container Styles */
+.sortContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sortContainer label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.sortSelect {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #f0f0f0;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sortSelect:focus {
+  outline: none;
+  border-color: #2c7a7b;
+  box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.5);
+}
+
+/* Custom Scrollbar Styles */
+.tableContainer::-webkit-scrollbar {
+  height: 10px; /* Keep height for horizontal scrollbar */
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: #e9ecef; /* Opaque track, same as dashboard */
+  border-radius: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background: #adb5bd; /* Lighter thumb */
+  border-radius: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background: #868e96; /* Lighter thumb hover */
+}
+
+.modalContent::-webkit-scrollbar {
+  width: 8px; /* Keep width for vertical scrollbar */
+}
+
+.modalContent::-webkit-scrollbar-track {
+  background: #e9ecef; /* Opaque track, same as dashboard */
+  border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+  background: #adb5bd; /* Lighter thumb */
+  border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb:hover {
+  background: #868e96; /* Lighter thumb hover */
+}
+
+/* Specific padding for Start Date and Deadline columns in product table */
+.productTable td:nth-child(6),
+.productTable td:nth-child(7) {
+  padding-right: 30px; /* Increased padding for more space */
+  padding-left: 30px; /* Increased padding for more space */
 }

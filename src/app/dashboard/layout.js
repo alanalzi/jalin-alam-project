@@ -4,7 +4,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect } from "react"
 import styles from "./dashboard.module.css"
-import { FaBoxOpen, FaFileInvoice, FaCog, FaUsersCog, FaUserShield } from "react-icons/fa"
+import { FaBoxOpen, FaFileInvoice, FaCog, FaUsersCog, FaUserShield, FaPowerOff } from "react-icons/fa"
 
 export default function DashboardLayout({ children, centerContent = false }) {
   const { data: session, status } = useSession()
@@ -32,10 +32,15 @@ export default function DashboardLayout({ children, centerContent = false }) {
           </div>
 
           <div className={styles.userInfoTop}>
-            <p className={styles.welcomeText}>
-              Halo {session?.user?.name || "User"}
-            </p>
-            <small className={styles.userEmail}>{session?.user?.email}</small>
+            <div>
+              <p className={styles.welcomeText}>
+                Halo {session?.user?.name || "User"}
+              </p>
+              <small className={styles.userEmail}>{session?.user?.email}</small>
+            </div>
+            <button onClick={() => signOut()} className={styles.logoutButton} title="Logout">
+              <FaPowerOff />
+            </button>
           </div>
 
           <div className={styles.sidebarMenu}>
@@ -69,9 +74,6 @@ export default function DashboardLayout({ children, centerContent = false }) {
         </div>
 
         <div className={styles.userInfoBottom}>
-          <button onClick={() => signOut()} className={styles.logoutButton}>
-            Logout
-          </button>
         </div>
       </aside>
 

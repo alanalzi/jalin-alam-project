@@ -1,3 +1,13 @@
+.loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #fff; /* Changed to white background */
+  padding: 20px;
+}
+
 .loginCard {
   background: rgba(255, 255, 255, 0.8); /* More opaque light background */
   backdrop-filter: blur(10px);
@@ -17,34 +27,35 @@
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); /* Adjust text shadow */
 }
 
-.submitButton {
-  padding: 12px;
-  width: 100%;
-  border: none;
-  border-radius: 8px;
-  background: #2c7a7b;
+.signin {
+  display: inline-flex;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  font-family: "Montserrat", sans-serif;
+  vertical-align: middle;
+  align-items: center;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  gap: 0.75rem;
   color: white;
-  font-size: 1.1rem;
-  font-weight: 600;
+  background-color: #2c7a7b;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s cubic-bezier(0, 0.87, 0.12, 1);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
-
-.submitButton:hover {
-  background: #285e61;
-  transform: translateY(-2px);
+.signin:hover {
+  transform: scale(1.025);
+  background-color: #285e61;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
-
-.loginCard form label {
-  display: block;
-  text-align: left;
-  margin-bottom: 10px;
-  font-weight: 500;
-  color: #333; /* Dark color for labels */
+.signin:active {
+  transform: scale(0.975);
 }
 
-.loginCard form label div {
-  margin-bottom: 5px;
+.signin svg {
+  height: 24px;
+  width: auto;
 }

@@ -29,13 +29,7 @@ export default function LoginPage() {
         {/* Tombol Google */}
         <button
           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-          className={styles.submitButton}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            justifyContent: "center",
-          }}
+          className={styles.signin}
         >
           <FcGoogle className="w-6 h-6" />
           <span className="font-medium">Login dengan Google</span>
