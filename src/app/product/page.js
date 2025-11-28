@@ -16,7 +16,7 @@ function formatDateForInput(dateString) {
 
 export default function ProductDevelopmentPage() {
   const [products, setProducts] = useState([]);
-  const [rawMaterials, setRawMaterials] = useState([]); // Re-introduced rawMaterials state
+  const [rawMaterials, setRawMaterials] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ 
     id: null, 
@@ -57,7 +57,7 @@ export default function ProductDevelopmentPage() {
     }
   }
 
-  async function fetchRawMaterials() { // Re-introduced fetchRawMaterials
+  async function fetchRawMaterials() {
     try {
       const res = await fetch('/api/supplier');
       if (res.ok) {
@@ -79,7 +79,7 @@ export default function ProductDevelopmentPage() {
 
   useEffect(() => {
     fetchProducts();
-    fetchRawMaterials(); // Fetch raw materials on mount
+    fetchRawMaterials();
   }, []);
 
   const openModal = () => setIsModalOpen(true);
@@ -93,7 +93,8 @@ export default function ProductDevelopmentPage() {
       description: "", 
       startDate: "", 
       deadline: "",
-      requiredMaterials: []
+      requiredMaterials: [],
+      images: []
     });
     setSelectedMaterialId('');
     setSelectedFiles([]);
@@ -170,12 +171,12 @@ export default function ProductDevelopmentPage() {
       name: formData.name || '',
       sku: formData.sku || '',
       category: formData.category || '',
-      description: formData.description || '',
-      startDate: formData.startDate || '',
-      deadline: formData.deadline || '',
-      requiredMaterials: formData.requiredMaterials,
-      images: formData.images,
-    }; // payload now includes formData.images (existing images)
+            description: formData.description || '', 
+            startDate: formData.startDate || '', 
+            deadline: formData.deadline || '',
+            requiredMaterials: formData.requiredMaterials,
+            images: formData.images,
+          }; // payload now includes formData.images (existing images)
 
     // Upload new files if selected
     if (selectedFiles.length > 0) {
@@ -333,7 +334,7 @@ export default function ProductDevelopmentPage() {
                   <td><Link href={`/product/${product.id}`}>{product.name}</Link></td>
                   <td>{product.sku}</td>
                   <td>{product.category}</td>
-                  <td>{formatDateForInput(product.startDate)}</td>
+                                    <td>{formatDateForInput(product.startDate)}</td>
                   <td>{formatDateForInput(product.deadline)}</td>
                   <td className={styles.actionButtons}>
                     <button onClick={() => handleEdit(product)}><FaEdit /></button>
@@ -357,6 +358,8 @@ export default function ProductDevelopmentPage() {
               <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required /></div>
               
+
+
               <div className={styles.formGroup}>
                 <label>Product Images</label>
                 <input 

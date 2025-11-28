@@ -49,7 +49,7 @@ export default function DashboardLayout({ children, centerContent = false }) {
               <FaBoxOpen className={styles.menuIcon} />
               <span>Product Development</span>
             </Link>
-            <Link href="/inquiry" className={`${styles.sidebarMenuItem} ${pathname === '/inquiry' ? styles.active : ''}`}>
+            <Link href="/inquiries" className={`${styles.sidebarMenuItem} ${pathname === '/inquiries' ? styles.active : ''}`}>
               <FaFileInvoice className={styles.menuIcon} />
               <span>Inquiry Management</span>
             </Link>

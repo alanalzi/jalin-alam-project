@@ -23,7 +23,13 @@ export async function GET(request, context) {
     connection = await mysql.createConnection(dbConfig);
 
     // Fetch product details
-    const [productRows] = await connection.execute('SELECT * FROM products WHERE id = ?', [id]);
+    const [productRows] = await connection.execute(
+      `SELECT 
+         p.*
+       FROM products p
+       WHERE p.id = ?`, 
+      [id]
+    );
     if (productRows.length === 0) {
       return NextResponse.json({ message: 'Product not found' }, { status: 404 });
     }
@@ -69,6 +75,7 @@ export async function PUT(request, context) {
 
     console.log('PUT /api/products/[id]: Incoming payload for product ID:', id);
     console.log('Payload name:', name);
+
     console.log('Payload requiredMaterials:', requiredMaterials);
     console.log('Payload images:', images);
     console.log('Payload checklist:', checklist);
@@ -104,7 +111,6 @@ export async function PUT(request, context) {
                 const updatedDeadline = toNullIfEmptyOrUndefined(deadline !== undefined ? deadline : currentProduct.deadline);
 
                 const updatedStatus = toNullIfEmptyOrUndefined(status !== undefined ? status : currentProduct.status); // Add this line
-
         
 
                 console.log('Updating product details for ID:', id);

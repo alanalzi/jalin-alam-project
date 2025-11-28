@@ -1,0 +1,270 @@
+/* jalin-alam/src/app/inquiries/inquiries.module.css */
+.pageContainer {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+    background: rgba(0, 0, 0, 0.8); /* Darker background from product-development */
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #f0f0f0; /* Lighter text color */
+}
+
+.backButtonContainer {
+    margin-bottom: 20px;
+}
+
+.backButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background-color: #f0f0f0; /* Keeping a light button for contrast or adjust if needed */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #333;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.backButton:hover {
+    background-color: #e0e0e0;
+}
+
+.title {
+    color: #f0f0f0; /* Lighter title color */
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7); /* Text shadow from product-development */
+}
+
+.toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.addButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #2c7a7b; /* Themed color from product-development */
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Shadow from product-development */
+}
+
+.addButton:hover {
+    background: #285e61;
+    transform: translateY(-2px); /* Hover effect from product-development */
+}
+
+.tableContainer {
+    overflow-x: auto;
+    margin-top: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.18); /* Border color from product-development */
+    border-radius: 8px;
+}
+
+.inquiryTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inquiryTable th,
+.inquiryTable td {
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Lighter border for dark theme */
+    padding: 12px 15px;
+    text-align: left;
+    color: #f0f0f0; /* Lighter text for dark theme */
+}
+
+.inquiryTable th {
+    background-color: rgba(255, 255, 255, 0.05); /* Darker header background */
+    font-weight: bold;
+    color: #f0f0f0; /* Lighter text for dark theme */
+}
+
+.inquiryTable tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02); /* Subtle row banding */
+}
+
+.inquiryTable tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.08); /* Hover effect for dark theme */
+}
+
+.actionButtons button {
+    background: none;
+    border: none;
+    color: #2c7a7b; /* Themed color for action buttons */
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-right: 10px;
+    transition: color 0.3s ease;
+}
+
+.actionButtons button:hover {
+    color: #285e61;
+}
+
+.actionButtons button:last-child {
+    margin-right: 0;
+    color: #e53e3e; /* Red for delete from product-development */
+}
+
+.actionButtons button:last-child:hover {
+    color: #c82333;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: rgba(27, 40, 56, 0.9); /* Darker, less transparent background */
+  backdrop-filter: blur(10px);
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 100%;
+  max-width: 500px; /* Max width from product-development */
+  max-height: 90vh; /* Max height from product-development */
+  overflow-y: auto; /* Scroll if content overflows */
+  color: #f0f0f0; /* Lighter text for modal content */
+}
+
+.modalTitle {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+  color: #f0f0f0; /* Lighter title color */
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500; /* Font weight from product-development */
+  color: #f0f0f0; /* Lighter label color */
+}
+
+.formGroup input[type="text"],
+.formGroup input[type="date"],
+.formGroup input[type="number"],
+.formGroup textarea,
+.formGroup select {
+  width: 100%; /* Changed from calc(100% - 22px) to 100% for consistency */
+  padding: 10px;
+  border-radius: 8px; /* Border radius from product-development */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Border color from product-development */
+  background: rgba(255, 255, 255, 0.1); /* Background from product-development */
+  color: #f0f0f0; /* Text color from product-development */
+  font-size: 1rem;
+}
+
+.formGroup textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.formGroup input:focus,
+.formGroup textarea:focus,
+.formGroup select:focus {
+  border-color: #2c7a7b; /* Focus border color from product-development */
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.5); /* Focus shadow from product-development */
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancelButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #718096; /* Themed color from product-development */
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cancelButton:hover {
+    background: #4a5568;
+}
+
+.saveButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #2c7a7b; /* Themed color from product-development */
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.saveButton:hover {
+    background: #285e61;
+}
+
+/* Custom Scrollbar Styles (copied from product-development.module.css) */
+.tableContainer::-webkit-scrollbar {
+  height: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05); /* Themed scrollbar track */
+  border-radius: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); /* Themed scrollbar thumb */
+  border-radius: 10px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4); /* Themed scrollbar thumb hover */
+}
+
+.modalContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modalContent::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05); /* Themed scrollbar track */
+  border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); /* Themed scrollbar thumb */
+  border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4); /* Themed scrollbar thumb hover */
+}

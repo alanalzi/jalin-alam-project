@@ -58,6 +58,7 @@ export async function POST(req) {
   console.log('POST /api/products: Incoming payload for new product');
   console.log('Payload name:', name);
   console.log('Payload sku:', sku);
+
   console.log('Payload requiredMaterials:', requiredMaterials);
   console.log('Payload images:', images);
 
