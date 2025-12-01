@@ -1,6 +1,7 @@
 // jalin-alam/src/app/inquiries/page.js
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation'; // NEW
 import Link from "next/link";
 import styles from "./inquiries.module.css";
 import { FaArrowLeft, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
@@ -15,6 +16,7 @@ function formatDateForInput(dateString) {
 }
 
 export default function InquiryManagementPage() {
+  const router = useRouter(); // NEW
   const [inquiries, setInquiries] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -34,6 +36,30 @@ export default function InquiryManagementPage() {
     order_quantity: "",
     images: []
   });
+
+  const handleInquiryCodeClick = async (inquiryCode) => { // NEW
+    try {
+      const res = await fetch(`/api/products?inquiryCode=${inquiryCode}`);
+      if (res.ok) {
+        const products = await res.json();
+        if (products.length > 0) {
+          router.push(`/product/${products[0].id}`); // Redirect to first found product
+        } else {
+          alert(`Product for inquiry code '${inquiryCode}' has not been added yet.`);
+        }
+      } else {
+        let errorMsg = `Failed to find product. Status: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (jsonError) {}
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error navigating to product:", error);
+      alert(`Error: ${String(error.message)}`);
+    }
+  };
 
   async function fetchInquiries() {
     try {
@@ -277,7 +303,7 @@ export default function InquiryManagementPage() {
                       style={{objectFit: 'cover'}}
                     />
                   </td>
-                  <td>{inquiry.inquiry_code}</td>
+                  <td><span onClick={() => handleInquiryCodeClick(inquiry.inquiry_code)} className={styles.clickableInquiryCode}>{inquiry.inquiry_code}</span></td>
                   <td>{inquiry.customer_name}</td>
                   <td>{inquiry.customer_email}</td>
                   <td>{inquiry.customer_phone}</td>

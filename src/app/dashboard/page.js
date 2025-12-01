@@ -138,6 +138,10 @@ export default function DashboardPage() {
                     <div className={styles.productInfo}>
                       <h3 className={styles.productName}>{product.name}</h3>
                       <p className={styles.productCategory}>{product.category}</p>
+                      <p className={styles.productType}><strong>Type:</strong> {product.type}</p>
+                      {product.overall_checklist_percentage !== undefined && (
+                        <p className={styles.productProgress}><strong>Progress:</strong> {product.overall_checklist_percentage}%</p>
+                      )}
                     </div>
                     <div className={styles.productDates}>
                       <p><strong>Mulai:</strong> {formatDateForDisplay(product.startDate)}</p>
@@ -168,7 +172,12 @@ export default function DashboardPage() {
                 width={150} height={150} 
                 className={styles.modalImage}
               />
-              <p><strong>SKU:</strong> {selectedProduct.sku}</p>
+              {selectedProduct.type === 'New Product' && (
+                <p><strong>SKU:</strong> {selectedProduct.inquiry_code}</p>
+              )}
+              {selectedProduct.type === 'Custom' && (
+                <p><strong>Inquiry Code:</strong> {selectedProduct.inquiry_code}</p>
+              )}
               <p><strong>Kategori:</strong> {selectedProduct.category}</p>
               <p><strong>Deskripsi:</strong> {selectedProduct.description}</p>
               <p><strong>Tanggal Mulai:</strong> {formatDateForDisplay(selectedProduct.startDate)}</p>

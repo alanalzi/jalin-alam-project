@@ -45,17 +45,13 @@ export default function DashboardLayout({ children, centerContent = false }) {
           </div>
 
           <div className={styles.sidebarMenu}>
-            <Link href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
-              <FaBoxOpen className={styles.menuIcon} />
-              <span>Product Development</span>
-            </Link>
             <Link href="/inquiries" className={`${styles.sidebarMenuItem} ${pathname === '/inquiries' ? styles.active : ''}`}>
               <FaFileInvoice className={styles.menuIcon} />
               <span>Inquiry Management</span>
             </Link>
-            <Link href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
-              <FaCog className={styles.menuIcon} />
-              <span>Setting & Report</span>
+            <Link href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
+              <FaBoxOpen className={styles.menuIcon} />
+              <span>Product Development</span>
             </Link>
             <Link href="/supplier" className={`${styles.sidebarMenuItem} ${pathname === '/supplier' ? styles.active : ''}`}>
               <FaBoxOpen className={styles.menuIcon} /> {/* Using FaBoxOpen for materials */}
@@ -75,6 +71,10 @@ export default function DashboardLayout({ children, centerContent = false }) {
                 <span>User Management</span>
               </Link>
             )}
+            {/* <Link href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
+              <FaCog className={styles.menuIcon} />
+              <span>Setting & Report</span>
+            </Link> */}
           </div>
         </div>
 

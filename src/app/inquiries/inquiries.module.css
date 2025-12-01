@@ -268,3 +268,13 @@
 .modalContent::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4); /* Themed scrollbar thumb hover */
 }
+
+.clickableInquiryCode {
+    cursor: pointer;
+    color: #4A90E2; /* A nice blue color */
+    text-decoration: underline;
+}
+
+.clickableInquiryCode:hover {
+    color: #6aabf7; /* Lighter blue on hover */
+}

@@ -203,7 +203,12 @@ export default function ProductDetailPage() {
           />
         )}
       </div>
-      <p className={styles.productInfo}><strong>SKU:</strong> {product.sku}</p>
+      {product.type === 'New Product' && (
+        <p className={styles.productInfo}><strong>SKU:</strong> {product.inquiry_code}</p>
+      )}
+      {product.type === 'Custom' && (
+        <p className={styles.productInfo}><strong>Inquiry Code:</strong> {product.inquiry_code}</p>
+      )}
       <p className={styles.productInfo}><strong>Category:</strong> {product.category}</p>
       <p className={styles.productInfo}><strong>Type:</strong> {product.type}</p>
       <p className={styles.productInfo}><strong>Start Date:</strong> {formatDateForInput(product.start_date)}</p>
@@ -211,8 +216,16 @@ export default function ProductDetailPage() {
       <p className={styles.productInfo}>
         <strong>Status:</strong> <span className={getStatusClassName(product.deadline)}>{getDisplayStatus(product.deadline)}</span>
       </p>
+      {product.overall_checklist_percentage !== undefined && (
+        <p className={styles.productInfo}><strong>Checklist Progress:</strong> {product.overall_checklist_percentage}%</p>
+      )}
       <p className={styles.productInfo}><strong>Description:</strong> {product.description}</p>
-      
+      {product.type === 'Custom' && product.customer_request && (
+        <p className={styles.productInfo}><strong>Customer Request:</strong> {product.customer_request}</p>
+      )}
+      {product.type === 'Custom' && product.order_quantity && (
+        <p className={styles.productInfo}><strong>Order Quantity:</strong> {product.order_quantity}</p>
+      )}
       
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Supplier</h2>

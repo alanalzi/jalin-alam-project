@@ -19,19 +19,21 @@ export default function ProductDevelopmentPage() {
   const [rawMaterials, setRawMaterials] = useState([]);
   const [inquiries, setInquiries] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ 
-    id: null, 
-    name: "", 
-    inquiry_code: "", 
-    category: "", 
-    description: "", 
-    startDate: "", 
-    deadline: "",
-    requiredMaterials: [],
-    images: [],
-    type: "New Product",
-  });
-  const [sortOrder, setSortOrder] = useState('deadline-asc');
+    const [formData, setFormData] = useState({
+      id: null,
+      name: "",
+      sku: "",
+      inquiry_code: "",
+      category: "",
+      description: "",
+      startDate: "",
+      deadline: "",
+      customer_request: "", // New
+      order_quantity: "",     // New
+      requiredMaterials: [],
+      images: [],
+      type: "New Product",
+    });  const [sortOrder, setSortOrder] = useState('deadline-asc');
   
   // State for the new material input
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
@@ -114,25 +116,59 @@ export default function ProductDevelopmentPage() {
   };
   const closeModal = () => {
     setIsModalOpen(false);
-    setFormData({ 
-          id: null, 
-          name: "", 
-          inquiry_code: "", 
-          category: "", 
-          description: "", 
-          startDate: "", 
-          deadline: "",
-          requiredMaterials: [],
-          images: [],
-          type: "New Product"
-        });    setSelectedMaterialId('');
+        setFormData({
+              id: null,
+              name: "",
+              sku: "",
+              inquiry_code: "",
+              category: "",
+              description: "",
+              startDate: "",
+              deadline: "",
+              customer_request: "",
+              order_quantity: "",
+              requiredMaterials: [],
+              images: [],
+              type: "New Product"
+            });    setSelectedMaterialId('');
     setSelectedFiles([]);
     setImagePreviews([]);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'inquiry_code') {
+      const selectedInquiry = inquiries.find(inq => inq.inquiry_code === value);
+
+      if (selectedInquiry) {
+        setFormData(prev => ({
+          ...prev,
+          inquiry_code: value,
+          name: selectedInquiry.product_name || '',
+          description: selectedInquiry.product_description || '',
+          startDate: formatDateForInput(selectedInquiry.request_date) || '',
+          deadline: formatDateForInput(selectedInquiry.image_deadline) || '',
+          images: selectedInquiry.images || [],
+          customer_request: selectedInquiry.customer_request || '',
+          order_quantity: selectedInquiry.order_quantity || '',
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          inquiry_code: '',
+          name: '',
+          description: '',
+          startDate: '',
+          deadline: '',
+          images: [],
+          customer_request: '',
+          order_quantity: '',
+        }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleAddMaterial = () => {
@@ -195,18 +231,18 @@ export default function ProductDevelopmentPage() {
     e.preventDefault();
     const url = formData.id ? `/api/products/${formData.id}` : '/api/products';
     const method = formData.id ? 'PUT' : 'POST';
-    const payload = {
-      id: formData.id,
-      name: formData.name || '',
-      inquiry_code: formData.inquiry_code || '',
-      category: formData.category || '',
-      description: formData.description || '', 
-      startDate: formData.startDate || '', 
-      deadline: formData.deadline || '',
-      requiredMaterials: formData.requiredMaterials,
-      images: formData.images,
-      type: formData.type,
-    }; // payload now includes formData.images (existing images)
+        const payload = {
+          id: formData.id,
+          name: formData.name || '',
+          inquiry_code: productType === 'New Product' ? formData.sku || '' : formData.inquiry_code || '',
+          category: formData.category || '',
+          description: formData.description || '',
+          startDate: formData.startDate || '',
+          deadline: formData.deadline || '',
+          requiredMaterials: formData.requiredMaterials,
+          images: formData.images,
+          type: formData.type,
+        }; // payload now includes formData.images (existing images)
 
     // Upload new files if selected
     if (selectedFiles.length > 0) {
@@ -268,19 +304,36 @@ export default function ProductDevelopmentPage() {
     try {
       const res = await fetch(`/api/products/${product.id}`);
       if(res.ok) {
-        const data = await res.json();
+        const data = await res.json(); // Fetched product data
+        console.log("Debug: data.startDate from API:", data.startDate);
+
+        let inquiryDetails = {};
+        if (data.type === 'Custom' && data.inquiry_code) {
+          // Find the corresponding inquiry from the already fetched inquiries list
+          const relatedInquiry = inquiries.find(inq => inq.inquiry_code === data.inquiry_code);
+          if (relatedInquiry) {
+            inquiryDetails = {
+              customer_request: relatedInquiry.customer_request || '',
+              order_quantity: relatedInquiry.order_quantity || '',
+            };
+          }
+        }
+
         setFormData({
-            ...data,
-            startDate: formatDateForInput(data.startDate),
-            deadline: formatDateForInput(data.deadline),
+            ...data, // Spread product data
+            ...inquiryDetails, // Spread inquiry-specific details if found
+            startDate: formatDateForInput(data.startDate), // Always use product's startDate
+            deadline: formatDateForInput(data.deadline),   // Always use product's deadline
             requiredMaterials: (data.requiredMaterials || []).map(material => ({
                 supplier_id: material.material_id,
                 supplier_name: material.material_name,
-            }))
+            })),
+            sku: data.type === 'New Product' ? data.inquiry_code : '',
+            inquiry_code: data.type === 'Custom' ? data.inquiry_code : '',
         });
-        setSelectedFiles([]); // Reset selected files
-        setImagePreviews([]); // Reset image previews
-        openModal();
+        setSelectedFiles([]);
+        setImagePreviews([]);
+        openModal(data.type);
       } else {
         let errorMsg = `Failed to fetch product details. Status: ${res.status}`;
         try {
@@ -347,7 +400,7 @@ export default function ProductDevelopmentPage() {
         <table className={styles.productTable}>
           <thead>
             <tr>
-              <th>Image</th><th>Product Name</th><th>Inquiry Code</th><th>Category</th><th>Type</th><th>Start Date</th><th>Deadline</th><th>Actions</th>
+              <th>Image</th><th>Product Name</th><th>Inquiry Code</th><th>Category</th><th>Type</th><th>Start Date</th><th>Deadline</th><th>Progress</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -368,6 +421,7 @@ export default function ProductDevelopmentPage() {
                   <td>{product.type}</td>
                   <td>{formatDateForInput(product.startDate)}</td>
                   <td>{formatDateForInput(product.deadline)}</td>
+                  <td>{product.overall_checklist_percentage}%</td>
                   <td className={styles.actionButtons}>
                     <button onClick={() => handleEdit(product)}><FaEdit /></button>
                     <button onClick={() => handleDelete(product.id)}><FaTrash /></button>
@@ -381,20 +435,36 @@ export default function ProductDevelopmentPage() {
       {isModalOpen && (
         <div key="product-modal-overlay" className={styles.modalOverlay}>
           <div key="product-modal-content" className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{formData.id ? "Edit Product" : `Add ${productType === 'New Product' ? 'New Product' : 'Custom Order'}`}</h2>
+            <h2 className={styles.modalTitle}>
+              {formData.id
+                ? "Edit Product"
+                : productType === 'New Product'
+                  ? "Add New Product"
+                  : "Custom Order"}
+            </h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}><label>Product Name</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}>
-                <label>Inquiry Code</label>
-                <select name="inquiry_code" value={formData.inquiry_code} onChange={handleInputChange} required>
-                  <option value="">Select Inquiry Code</option>
-                  {inquiries.map((inquiry) => (
-                    <option key={inquiry.id} value={inquiry.inquiry_code}>
-                      {inquiry.inquiry_code}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {productType === 'New Product' && (
+                <div className={styles.formGroup}>
+                  <label>SKU Code</label>
+                  <input type="text" name="sku" value={formData.sku} onChange={handleInputChange} required />
+                </div>
+              )}
+
+              {productType === 'Custom' && (
+                <div className={styles.formGroup}>
+                  <label>Inquiry Code</label>
+                  <select name="inquiry_code" value={formData.inquiry_code} onChange={handleInputChange} required>
+                    <option value="">Select Inquiry Code</option>
+                    {inquiries.map((inquiry) => (
+                      <option key={inquiry.id} value={inquiry.inquiry_code}>
+                        {inquiry.inquiry_code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className={styles.formGroup}>
                 <label>Category</label>
                 <select name="category" value={formData.category} onChange={handleInputChange}>
@@ -405,6 +475,18 @@ export default function ProductDevelopmentPage() {
                 </select>
               </div>
               <div className={styles.formGroup}><label>Description</label><textarea name="description" value={formData.description} onChange={handleInputChange}></textarea></div>
+              {productType === 'Custom' && (
+                <>
+                  <div className={styles.formGroup}>
+                    <label>Customer Request</label>
+                    <textarea name="customer_request" value={formData.customer_request} onChange={handleInputChange}></textarea>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Order Quantity</label>
+                    <input type="number" name="order_quantity" value={formData.order_quantity} onChange={handleInputChange} required />
+                  </div>
+                </>
+              )}
               <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required /></div>
               

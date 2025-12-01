@@ -10,11 +10,13 @@ const dbConfig = {
   database: process.env.DB_NAME || 'jalin_alam_db',
 };
 
-export async function GET() {
+export async function GET(request) {
+  const inquiryCode = request.nextUrl.searchParams.get('inquiryCode');
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute(`
+
+    let query = `
       SELECT
         p.id,
         p.name,
@@ -25,15 +27,29 @@ export async function GET() {
         p.deadline,
         p.status,
         p.type,
-        GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images
+        GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images,
+        COALESCE(ROUND(AVG(pc.percentage)), 0) AS overall_checklist_percentage
       FROM
         products p
       LEFT JOIN
         product_images pi ON p.id = pi.product_id
+      LEFT JOIN
+        product_checklists pc ON p.id = pc.product_id`;
+    
+    const queryParams = [];
+
+    if (inquiryCode) {
+      query += ` WHERE p.inquiry_code = ?`;
+      queryParams.push(inquiryCode);
+    }
+
+    query += `
       GROUP BY
         p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.status, p.type
       ORDER BY p.id DESC
-    `);
+    `;
+    
+    const [rows] = await connection.execute(query, queryParams);
     
     // Process rows to group images into an array for each product
     const products = rows.map(row => ({
