@@ -1,0 +1,5 @@
+ALTER TABLE products
+DROP COLUMN sku;
+
+ALTER TABLE products
+ADD COLUMN inquiry_code VARCHAR(255) UNIQUE AFTER name;

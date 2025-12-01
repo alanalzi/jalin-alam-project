@@ -308,7 +308,8 @@ export default function InquiryManagementPage() {
                   type="text"
                   name="inquiry_code"
                   value={formData.inquiry_code}
-                  readOnly // Inquiry code is generated, not directly editable by user
+                  onChange={handleInputChange}
+                  placeholder="Leave blank to auto-generate"
                 />
               </div>
 

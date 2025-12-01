@@ -58,7 +58,8 @@ export async function GET() {
 
 export async function POST(req) {
   let connection;
-  const { 
+  let { 
+    inquiry_code,
     customer_name, 
     customer_email,
     customer_phone,
@@ -80,8 +81,16 @@ export async function POST(req) {
     connection = await mysql.createConnection(dbConfig);
     await connection.beginTransaction();
 
-    const [uuidRows] = await connection.execute('SELECT UUID() as uuid');
-    const inquiry_code = `INQ-${uuidRows[0].uuid.split('-')[0].toUpperCase()}-${Date.now()}`;
+    if (!inquiry_code) {
+      const [uuidRows] = await connection.execute('SELECT UUID() as uuid');
+      inquiry_code = `INQ-${uuidRows[0].uuid.split('-')[0].toUpperCase()}-${Date.now()}`;
+    } else {
+      const [existing] = await connection.execute('SELECT id FROM inquiries WHERE inquiry_code = ?', [inquiry_code]);
+      if (existing.length > 0) {
+        await connection.rollback();
+        return NextResponse.json({ message: `Inquiry code '${inquiry_code}' already exists.` }, { status: 409 });
+      }
+    }
     
     const [result] = await connection.execute(
       `INSERT INTO inquiries (inquiry_code, customer_name, customer_email, customer_phone, customer_address, product_name, product_description, customer_request, request_date, image_deadline, order_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -98,10 +107,14 @@ export async function POST(req) {
     }
     await connection.commit();
 
-    return NextResponse.json({ message: 'Inquiry added successfully', inquiryId }, { status: 201 });
+    return NextResponse.json({ message: 'Inquiry added successfully', inquiryId, inquiry_code }, { status: 201 });
 
   } catch (error) {
+    if (connection) await connection.rollback();
     console.error('Failed to process POST request:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+        return NextResponse.json({ message: 'A unique field already has this value.', error: error.message }, { status: 409 });
+    }
     return NextResponse.json({ message: 'Failed to add inquiry', error: error.message }, { status: 500 });
   } finally {
     if (connection) {

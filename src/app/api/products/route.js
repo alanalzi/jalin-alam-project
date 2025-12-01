@@ -18,19 +18,20 @@ export async function GET() {
       SELECT
         p.id,
         p.name,
-        p.sku,
+        p.inquiry_code,
         p.category,
         p.description,
         p.start_date AS startDate,
         p.deadline,
         p.status,
+        p.type,
         GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images
       FROM
         products p
       LEFT JOIN
         product_images pi ON p.id = pi.product_id
       GROUP BY
-        p.id, p.name, p.sku, p.category, p.description, p.start_date, p.deadline, p.status
+        p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.status, p.type
       ORDER BY p.id DESC
     `);
     
@@ -53,18 +54,19 @@ export async function GET() {
 
 export async function POST(req) {
   let connection;
-  const { name, sku, category, description, startDate, deadline, status, requiredMaterials, images } = await req.json();
+  const { name, inquiry_code, category, description, startDate, deadline, status, requiredMaterials, images, type } = await req.json();
 
   console.log('POST /api/products: Incoming payload for new product');
   console.log('Payload name:', name);
-  console.log('Payload sku:', sku);
+  console.log('Payload inquiry_code:', inquiry_code);
+  console.log('Payload type:', type);
 
   console.log('Payload requiredMaterials:', requiredMaterials);
   console.log('Payload images:', images);
 
   try {
-    if (!name || !sku) {
-      return NextResponse.json({ message: 'Name and SKU are required' }, { status: 400 });
+    if (!name || !inquiry_code) {
+      return NextResponse.json({ message: 'Name and Inquiry Code are required' }, { status: 400 });
     }
 
     connection = await mysql.createConnection(dbConfig);
@@ -72,8 +74,8 @@ export async function POST(req) {
 
     // Insert new product
     const [productResult] = await connection.execute(
-      `INSERT INTO products (name, sku, category, description, start_date, deadline, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, sku, category, description, startDate, deadline, status || 'ongoing']
+      `INSERT INTO products (name, inquiry_code, category, description, start_date, deadline, status, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, inquiry_code, category, description, startDate, deadline, status || 'ongoing', type || 'Standard']
     );
     const productId = productResult.insertId;
     console.log('Product inserted with ID:', productId);
@@ -133,7 +135,7 @@ export async function POST(req) {
     }
     console.error('Failed to process POST request:', error); // Log the full error
     if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json({ message: `SKU '${sku}' already exists. Please use a different SKU.` }, { status: 409 });
+      return NextResponse.json({ message: `Inquiry Code '${inquiry_code}' already exists. Please use a different Inquiry Code.` }, { status: 409 });
     }
 
     return NextResponse.json({ message: 'Failed to add product', error: error.message }, { status: 500 });

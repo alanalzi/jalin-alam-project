@@ -17,17 +17,19 @@ function formatDateForInput(dateString) {
 export default function ProductDevelopmentPage() {
   const [products, setProducts] = useState([]);
   const [rawMaterials, setRawMaterials] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ 
     id: null, 
     name: "", 
-    sku: "", 
+    inquiry_code: "", 
     category: "", 
     description: "", 
     startDate: "", 
     deadline: "",
     requiredMaterials: [],
-    images: []
+    images: [],
+    type: "New Product",
   });
   const [sortOrder, setSortOrder] = useState('deadline-asc');
   
@@ -77,26 +79,53 @@ export default function ProductDevelopmentPage() {
     }
   }
 
+  async function fetchInquiries() {
+    try {
+      const res = await fetch('/api/inquiries');
+      if (res.ok) {
+        const data = await res.json();
+        setInquiries(data);
+      } else {
+        let errorMsg = `HTTP Error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (jsonError) {}
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error fetching inquiries:", error);
+      alert(`Error fetching inquiries: ${String(error.message)}`);
+    }
+  }
+
   useEffect(() => {
     fetchProducts();
     fetchRawMaterials();
+    fetchInquiries();
   }, []);
 
-  const openModal = () => setIsModalOpen(true);
+  const [productType, setProductType] = useState('New Product');
+
+  const openModal = (type = 'New Product') => {
+    setProductType(type);
+    setFormData(prev => ({ ...prev, type: type }));
+    setIsModalOpen(true);
+  };
   const closeModal = () => {
     setIsModalOpen(false);
     setFormData({ 
-      id: null, 
-      name: "", 
-      sku: "", 
-      category: "", 
-      description: "", 
-      startDate: "", 
-      deadline: "",
-      requiredMaterials: [],
-      images: []
-    });
-    setSelectedMaterialId('');
+          id: null, 
+          name: "", 
+          inquiry_code: "", 
+          category: "", 
+          description: "", 
+          startDate: "", 
+          deadline: "",
+          requiredMaterials: [],
+          images: [],
+          type: "New Product"
+        });    setSelectedMaterialId('');
     setSelectedFiles([]);
     setImagePreviews([]);
   };
@@ -169,14 +198,15 @@ export default function ProductDevelopmentPage() {
     const payload = {
       id: formData.id,
       name: formData.name || '',
-      sku: formData.sku || '',
+      inquiry_code: formData.inquiry_code || '',
       category: formData.category || '',
-            description: formData.description || '', 
-            startDate: formData.startDate || '', 
-            deadline: formData.deadline || '',
-            requiredMaterials: formData.requiredMaterials,
-            images: formData.images,
-          }; // payload now includes formData.images (existing images)
+      description: formData.description || '', 
+      startDate: formData.startDate || '', 
+      deadline: formData.deadline || '',
+      requiredMaterials: formData.requiredMaterials,
+      images: formData.images,
+      type: formData.type,
+    }; // payload now includes formData.images (existing images)
 
     // Upload new files if selected
     if (selectedFiles.length > 0) {
@@ -309,14 +339,15 @@ export default function ProductDevelopmentPage() {
             <option value="deadline-desc">Deadline (Latest First)</option>
           </select>
         </div>
-        <button onClick={openModal} className={styles.addButton}>Add Product</button>
+        <button onClick={() => openModal('New Product')} className={styles.addButton}>Add New Product</button>
+        <button onClick={() => openModal('Custom')} className={`${styles.addButton} ${styles.addCustomButton}`}>Add Custom Order</button>
       </div>
 
       <div className={styles.tableContainer}>
         <table className={styles.productTable}>
           <thead>
             <tr>
-              <th>Image</th><th>Product Name</th><th>SKU</th><th>Category</th><th>Start Date</th><th>Deadline</th><th>Actions</th>
+              <th>Image</th><th>Product Name</th><th>Inquiry Code</th><th>Category</th><th>Type</th><th>Start Date</th><th>Deadline</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -332,9 +363,10 @@ export default function ProductDevelopmentPage() {
                     />
                   </td>
                   <td><Link href={`/product/${product.id}`}>{product.name}</Link></td>
-                  <td>{product.sku}</td>
+                  <td>{product.inquiry_code}</td>
                   <td>{product.category}</td>
-                                    <td>{formatDateForInput(product.startDate)}</td>
+                  <td>{product.type}</td>
+                  <td>{formatDateForInput(product.startDate)}</td>
                   <td>{formatDateForInput(product.deadline)}</td>
                   <td className={styles.actionButtons}>
                     <button onClick={() => handleEdit(product)}><FaEdit /></button>
@@ -349,11 +381,29 @@ export default function ProductDevelopmentPage() {
       {isModalOpen && (
         <div key="product-modal-overlay" className={styles.modalOverlay}>
           <div key="product-modal-content" className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{formData.id ? "Edit Product" : "Add New Product"}</h2>
+            <h2 className={styles.modalTitle}>{formData.id ? "Edit Product" : `Add ${productType === 'New Product' ? 'New Product' : 'Custom Order'}`}</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}><label>Product Name</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>SKU</label><input type="text" name="sku" value={formData.sku} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Category</label><input type="text" name="category" value={formData.category} onChange={handleInputChange} /></div>
+              <div className={styles.formGroup}>
+                <label>Inquiry Code</label>
+                <select name="inquiry_code" value={formData.inquiry_code} onChange={handleInputChange} required>
+                  <option value="">Select Inquiry Code</option>
+                  {inquiries.map((inquiry) => (
+                    <option key={inquiry.id} value={inquiry.inquiry_code}>
+                      {inquiry.inquiry_code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label>Category</label>
+                <select name="category" value={formData.category} onChange={handleInputChange}>
+                  <option value="">Select Category</option>
+                  <option value="storage">Storage</option>
+                  <option value="decorative">Decorative</option>
+                  <option value="table top">Table Top</option>
+                </select>
+              </div>
               <div className={styles.formGroup}><label>Description</label><textarea name="description" value={formData.description} onChange={handleInputChange}></textarea></div>
               <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>Deadline</label><input type="date" name="deadline" value={formData.deadline} onChange={handleInputChange} required /></div>

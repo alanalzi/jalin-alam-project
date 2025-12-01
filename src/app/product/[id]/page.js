@@ -68,21 +68,21 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [id]);
 
-  const handleChecklistChange = (taskId) => {
+  const handleChecklistChange = (taskId, value) => {
     setChecklist(
       checklist.map((task) =>
-        task.id === taskId ? { ...task, is_completed: !task.is_completed } : task
+        task.id === taskId ? { ...task, percentage: parseInt(value, 10) } : task
       )
     );
   };
 
   const handleAddTask = () => {
-    if (newTask.trim()) {
+    if (newTask.trim() && newTask !== '') {
       const newTaskObj = {
         id: `temp-${Date.now()}`,
         product_id: id,
         task: newTask.trim(),
-        is_completed: false,
+        percentage: 0,
       };
       setChecklist([...checklist, newTaskObj]);
       setNewTask('');
@@ -105,12 +105,7 @@ export default function ProductDetailPage() {
         // The requiredMaterials are read-only on this page, and their stock is managed elsewhere.
         body: JSON.stringify({
           id: product.id, // Explicitly send ID for backend PUT
-          checklist,
-          requiredMaterials: requiredMaterials.map(material => ({
-            material_id: material.material_id,
-            material_name: material.material_name,
-            quantity_needed: material.quantity_needed
-          }))
+          checklist
         }),
       });
 
@@ -210,6 +205,7 @@ export default function ProductDetailPage() {
       </div>
       <p className={styles.productInfo}><strong>SKU:</strong> {product.sku}</p>
       <p className={styles.productInfo}><strong>Category:</strong> {product.category}</p>
+      <p className={styles.productInfo}><strong>Type:</strong> {product.type}</p>
       <p className={styles.productInfo}><strong>Start Date:</strong> {formatDateForInput(product.start_date)}</p>
       <p className={styles.productInfo}><strong>Deadline:</strong> {formatDateForInput(product.deadline)}</p>
       <p className={styles.productInfo}>
@@ -251,12 +247,15 @@ export default function ProductDetailPage() {
           {checklist.map((task) => (
             <div key={task.id} className={styles.checklistTask}>
               <input
-                type="checkbox"
-                checked={task.is_completed}
-                onChange={() => handleChecklistChange(task.id)}
-                className={styles.checklistCheckbox}
+                type="range"
+                min="0"
+                max="100"
+                value={task.percentage || 0}
+                onChange={(e) => handleChecklistChange(task.id, e.target.value)}
+                className={styles.checklistSlider}
               />
-              <span className={`${styles.checklistText} ${task.is_completed ? styles.completed : ''}`}>
+              <span className={styles.percentageLabel}>{task.percentage || 0}%</span>
+              <span className={`${styles.checklistText} ${task.percentage === 100 ? styles.completed : ''}`}>
                 {task.task}
               </span>
               <button onClick={() => handleDeleteTask(task.id)} className={styles.deleteButton}>
@@ -267,13 +266,20 @@ export default function ProductDetailPage() {
         </div>
 
         <div className={styles.addTaskForm}>
-          <input
-            type="text"
+          <select
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            placeholder="Add new production task"
             className={styles.addTaskInput}
-          />
+          >
+            <option value="">Select a task</option>
+            <option value="pembahanan">Pembahanan</option>
+            <option value="bentuk">Bentuk</option>
+            <option value="lem">Lem</option>
+            <option value="amplas">Amplas</option>
+            <option value="triming">Triming</option>
+            <option value="finishing">Finishing</option>
+            <option value="delivery">Delivery</option>
+          </select>
           <button onClick={handleAddTask} className={styles.addTaskButton}>
             <FaPlus /> Add Task
           </button>

@@ -127,10 +127,10 @@ export async function PUT(request, context) {
             console.log('Updating checklist for product ID:', id);
             await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [id]);
             if (Array.isArray(checklist) && checklist.length > 0) {
-                const checklistValues = checklist.map(item => [id, item.task, item.is_completed ? 1 : 0]);
+                const checklistValues = checklist.map(item => [id, item.task, item.percentage]);
                 console.log('Inserting checklist values:', checklistValues);
                 await connection.query(
-                    'INSERT INTO product_checklists (product_id, task, is_completed) VALUES ?',
+                    'INSERT INTO product_checklists (product_id, task, percentage) VALUES ?',
                     [checklistValues]
                 );
             }
