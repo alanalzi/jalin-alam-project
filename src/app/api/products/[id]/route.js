@@ -89,8 +89,8 @@ export async function GET(request, context) {
     product.checklist = checklistRows;
     
     if (product.checklist && product.checklist.length > 0) {
-      const completedTasks = product.checklist.filter(task => task.is_completed).length;
-      product.overall_checklist_percentage = Math.round((completedTasks / product.checklist.length) * 100);
+      const totalPercentageSum = product.checklist.reduce((sum, task) => sum + (task.percentage || 0), 0);
+      product.overall_checklist_percentage = Math.round(totalPercentageSum / product.checklist.length);
     } else {
       product.overall_checklist_percentage = 0;
     }
@@ -193,13 +193,14 @@ export async function PUT(request, context) {
         // --- Update checklist if provided ---
         if (checklist !== undefined) {
             console.log('Updating checklist for product ID:', id);
+            await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [id]);
             if (Array.isArray(checklist) && checklist.length > 0) {
-                for (const item of checklist) {
-                    await connection.execute(
-                        'UPDATE product_checklists SET is_completed = ? WHERE id = ? AND product_id = ?',
-                        [item.is_completed, item.id, id]
-                    );
-                }
+                const checklistValues = checklist.map(item => [id, item.task, item.percentage]);
+                console.log('Inserting checklist values:', checklistValues);
+                await connection.query(
+                    'INSERT INTO product_checklists (product_id, task, percentage) VALUES ?',
+                    [checklistValues]
+                );
             }
         }
         

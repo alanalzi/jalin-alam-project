@@ -28,7 +28,7 @@ export async function GET(request) {
         p.status,
         p.type,
         GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images,
-        COALESCE(ROUND(AVG(CASE WHEN pc.is_completed = 1 THEN 100 ELSE 0 END)), 0) AS overall_checklist_percentage
+        COALESCE(ROUND(AVG(pc.percentage)), 0) AS overall_checklist_percentage
       FROM
         products p
       LEFT JOIN
