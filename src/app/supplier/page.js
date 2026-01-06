@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "../product/product-development.module.css"; // Reusing styles for now
-import { FaArrowLeft, FaEdit, FaTrash } from "react-icons/fa";
+import { FaArrowLeft, FaEdit, FaTrash, FaTruck } from "react-icons/fa";
 
 export default function SupplierPage() {
   const [materials, setMaterials] = useState([]);
@@ -111,7 +111,10 @@ export default function SupplierPage() {
       <div className={styles.backButtonContainer}>
         <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Back to Dashboard</span></Link>
       </div>
-      <h1 className={styles.title}>Supplier Management</h1>
+      <div className={styles.titleContainer}>
+        <FaTruck className={styles.titleIcon} />
+        <h1 className={styles.title}>Supplier Management</h1>
+      </div>
 
       <div className={styles.toolbar}>
         <button onClick={openModal} className={styles.addButton}>Add Supplier</button>
