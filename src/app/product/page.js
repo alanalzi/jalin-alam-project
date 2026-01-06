@@ -2,16 +2,42 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "./product-development.module.css";
-import { FaArrowLeft, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import { FaArrowLeft, FaEdit, FaTrash, FaPlus, FaTools } from "react-icons/fa";
 
-// Helper function to format date strings for input fields
-function formatDateForInput(dateString) {
+// Helper function to format date strings for display (DD-MM-YYYY)
+function formatDateForDisplay(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+// Helper function to format date strings for input fields (YYYY-MM-DD)
+function formatDateForInputValue(dateString) {
+  if (!dateString) return '';
+  let date;
+  // Handle 'DD-MM-YYYY' format, which might be coming from some parts of the app
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+    const parts = dateString.split('-');
+    // new Date(year, monthIndex, day)
+    date = new Date(parts[2], parts[1] - 1, parts[0]);
+  } else {
+    // Default to handling ISO 8601 or other standard formats from the database
+    date = new Date(dateString);
+  }
+  
+  // Check if the created date is valid
+  if (isNaN(date.getTime())) {
+    return ''; // Return empty if date is not valid
+  }
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return `${day}-${month}-${year}`;
+  return `${year}-${month}-${day}`;
 }
 
 export default function ProductDevelopmentPage() {
@@ -109,9 +135,36 @@ export default function ProductDevelopmentPage() {
 
   const [productType, setProductType] = useState('New Product');
 
-  const openModal = (type = 'New Product') => {
+  const openModal = (type = 'New Product', isNew = false) => {
     setProductType(type);
-    setFormData(prev => ({ ...prev, type: type }));
+
+    if (isNew) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
+
+      setFormData({
+        id: null,
+        name: "",
+        sku: "",
+        inquiry_code: "",
+        category: "",
+        description: "",
+        startDate: type === "New Product" ? currentDate : "",
+        deadline: "",
+        customer_request: "",
+        order_quantity: "",
+        requiredMaterials: [],
+        images: [],
+        type: type,
+      });
+      setSelectedMaterialId("");
+      setSelectedFiles([]);
+      setImagePreviews([]);
+    }
+
     setIsModalOpen(true);
   };
   const closeModal = () => {
@@ -147,8 +200,8 @@ export default function ProductDevelopmentPage() {
           inquiry_code: value,
           name: selectedInquiry.product_name || '',
           description: selectedInquiry.product_description || '',
-          startDate: formatDateForInput(selectedInquiry.request_date) || '',
-          deadline: formatDateForInput(selectedInquiry.image_deadline) || '',
+          startDate: formatDateForInputValue(selectedInquiry.request_date) || '',
+          deadline: formatDateForInputValue(selectedInquiry.image_deadline) || '',
           images: selectedInquiry.images || [],
           customer_request: selectedInquiry.customer_request || '',
           order_quantity: selectedInquiry.order_quantity || '',
@@ -322,8 +375,8 @@ export default function ProductDevelopmentPage() {
         setFormData({
             ...data, // Spread product data
             ...inquiryDetails, // Spread inquiry-specific details if found
-            startDate: formatDateForInput(data.startDate), // Always use product's startDate
-            deadline: formatDateForInput(data.deadline),   // Always use product's deadline
+            startDate: formatDateForInputValue(data.startDate), // Always use product's startDate
+            deadline: formatDateForInputValue(data.deadline),   // Always use product's deadline
             requiredMaterials: (data.requiredMaterials || []).map(material => ({
                 supplier_id: material.material_id,
                 supplier_name: material.material_name,
@@ -401,7 +454,10 @@ export default function ProductDevelopmentPage() {
       <div className={styles.backButtonContainer}>
         <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Back</span></Link>
       </div>
-      <h1 className={styles.title}>Product Development</h1>
+      <div className={styles.titleContainer}>
+        <FaTools className={styles.titleIcon} />
+        <h1 className={styles.title}>Product Development</h1>
+      </div>
       
       <div className={styles.toolbar}>
         <div className={styles.sortContainer}>
@@ -417,8 +473,10 @@ export default function ProductDevelopmentPage() {
             <option value="startDate-desc">Start Date (Latest First)</option>
           </select>
         </div>
-        <button onClick={() => openModal('New Product')} className={styles.addButton}>Add New Product</button>
-        <button onClick={() => openModal('Custom')} className={`${styles.addButton} ${styles.addCustomButton}`}>Add Custom Order</button>
+        <div className={styles.buttonGroup}>
+          <button onClick={() => openModal('New Product', true)} className={styles.addButton}>Add New Product</button>
+          <button onClick={() => openModal('Custom', true)} className={`${styles.addButton} ${styles.addCustomButton}`}>Add Custom Order</button>
+        </div>
       </div>
 
       <div className={styles.tableContainer}>
@@ -444,8 +502,8 @@ export default function ProductDevelopmentPage() {
                   <td>{product.inquiry_code}</td>
                   <td>{product.category}</td>
                   <td>{product.type}</td>
-                  <td>{formatDateForInput(product.startDate)}</td>
-                  <td>{formatDateForInput(product.deadline)}</td>
+                  <td>{formatDateForDisplay(product.startDate)}</td>
+                  <td>{formatDateForDisplay(product.deadline)}</td>
                   <td>{product.overall_checklist_percentage}%</td>
                   <td className={styles.actionButtons}>
                     <button onClick={() => handleEdit(product)}><FaEdit /></button>
