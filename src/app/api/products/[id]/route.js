@@ -11,8 +11,8 @@ const dbConfig = {
 };
 
 
-export async function GET(request, context) {
-  const id = (await Promise.resolve(context.params)).id;
+export async function GET(request, { params }) {
+  const { id } = params;
 
   if (!id) {
     return NextResponse.json({ message: 'Product ID is required' }, { status: 400 });
@@ -57,7 +57,7 @@ export async function GET(request, context) {
         // Map inquiry data to the product object
         product.name = inquiryData.product_name;
         product.description = inquiryData.product_description;
-        product.start_date = inquiryData.request_date;
+        product.startDate = inquiryData.request_date;
         product.deadline = inquiryData.image_deadline;
         product.customer_request = inquiryData.customer_request;
         product.order_quantity = inquiryData.order_quantity;
@@ -71,7 +71,7 @@ export async function GET(request, context) {
     } else {
       // For 'New Product' or other types, get data from the products table itself
       const [fullProductRows] = await connection.execute(
-        `SELECT name, description, start_date, deadline FROM products WHERE id = ?`,
+        `SELECT name, description, start_date AS startDate, deadline FROM products WHERE id = ?`,
         [id]
       );
       if (fullProductRows.length > 0) {
@@ -118,7 +118,7 @@ export async function GET(request, context) {
 }
 
 export async function PUT(request, context) {
-    const id = (await Promise.resolve(context.params)).id;
+    const { id } = context.params;
     const {
         name,
         inquiry_code, // Renamed from sku to inquiry_code

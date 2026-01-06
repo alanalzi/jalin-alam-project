@@ -122,7 +122,7 @@
 
 .productTable th {
   font-weight: 600;
-  text-align: left; /* Changed from center to left to align with td */
+  text-align: center; /* Center the table headers */
 }
 
 .productImage {
@@ -359,5 +359,4 @@
 .productTable td:nth-child(7) {
   padding-right: 30px; /* Increased padding for more space */
   padding-left: 30px; /* Increased padding for more space */
-  white-space: nowrap; /* Prevent date text from wrapping */
 }

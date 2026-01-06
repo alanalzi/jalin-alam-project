@@ -10,8 +10,8 @@ const dbConfig = {
   database: process.env.DB_NAME || 'jalin_alam_db',
 };
 
-export async function PUT(req, context) {
-  const id = (await Promise.resolve(context.params)).id;
+export async function PUT(req, { params }) {
+  const { id } = params;
   const { name, contact_info_text, supplier_description } = await req.json();
 
   if (!id) {
