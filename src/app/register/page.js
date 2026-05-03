@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -68,7 +69,7 @@ export default function RegisterPage() {
 
         <p className="register-footer">
           Sudah punya akun?{" "}
-          <a href="/" className="login-link">Login di sini</a>
+          <Link href="/" className="login-link">Login di sini</Link>
         </p>
       </div>
 

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Custom additions
+*.zip
+scratch/
+xampp_mysql_data_backup/
+public/uploads/

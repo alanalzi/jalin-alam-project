@@ -1,41 +1,47 @@
 // jalin-alam/src/app/api/products/route.js
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-// Database connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'jalin_alam_db',
-};
+import createConnection from '@/app/lib/db';
+import { getToken } from "next-auth/jwt";
 
 export async function GET(request) {
   const inquiryCode = request.nextUrl.searchParams.get('inquiryCode');
   let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
+    connection = await createConnection();
 
     let query = `
       SELECT
         p.id,
-        p.name,
+        CASE WHEN p.type = 'Custom' THEN COALESCE(i.product_name, p.name) ELSE p.name END as name,
         p.inquiry_code,
         p.category,
-        p.description,
+        CASE WHEN p.type = 'Custom' THEN COALESCE(i.product_description, p.description) ELSE p.description END as description,
         p.start_date AS startDate,
         p.deadline,
-        p.status,
+        p.order_quantity,
+        p.created_at,
+        CASE 
+          WHEN (p.status != 'Done' AND p.status != 'Selesai' OR p.status IS NULL) AND p.deadline < CURDATE() THEN 'Late'
+          ELSE COALESCE(p.status, 'Ongoing')
+        END AS status,
+        p.validation_status,
+        i.validation_status AS inquiry_validation_status,
+        p.validation_notes,
+        i.validation_notes AS inquiry_validation_notes,
         p.type,
+        p.custom_attributes,
         GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images,
-        COALESCE(ROUND(AVG(CASE WHEN pc.is_completed = 1 THEN 100 ELSE 0 END)), 0) AS overall_checklist_percentage
+        COALESCE(ROUND(AVG(pc.percentage)), 0) AS overallChecklistPercentage,
+        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = p.id AND er.target_type = 'product' AND er.status = 'pending') as has_pending_edit
       FROM
         products p
+      LEFT JOIN
+        inquiries i ON p.inquiry_code = i.inquiry_code
       LEFT JOIN
         product_images pi ON p.id = pi.product_id
       LEFT JOIN
         product_checklists pc ON p.id = pc.product_id`;
-    
+
     const queryParams = [];
 
     if (inquiryCode) {
@@ -45,100 +51,105 @@ export async function GET(request) {
 
     query += `
       GROUP BY
-        p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.status, p.type
+        p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.created_at, p.status, p.validation_status, p.validation_notes, p.type, i.product_name, i.product_description
       ORDER BY p.id DESC
     `;
-    
+
     const [rows] = await connection.execute(query, queryParams);
-    
+
     // Process rows to group images into an array for each product
-    const products = rows.map(row => ({
-      ...row,
-      images: row.images ? row.images.split(',') : [],
-    }));
+    const products = rows.map(row => {
+      let customAttributes = row.custom_attributes;
+      if (typeof customAttributes === 'string') {
+        try {
+          customAttributes = JSON.parse(customAttributes);
+        } catch (e) {
+          customAttributes = [];
+        }
+      }
+
+      return {
+        ...row,
+        images: row.images ? row.images.split(',') : [],
+        custom_attributes: Array.isArray(customAttributes) ? customAttributes : [],
+      };
+    });
 
     return NextResponse.json(products);
   } catch (error) {
     console.error('Database query failed:', error);
     return NextResponse.json({ message: 'Failed to fetch products', error: error.message }, { status: 500 });
   } finally {
-    if (connection) {
-      await connection.end();
-    }
+    if (connection) connection.release();
   }
 }
 
 export async function POST(req) {
   let connection;
-  const { name, inquiry_code, category, description, startDate, deadline, status, requiredMaterials, images, type } = await req.json();
-
-  console.log('POST /api/products: Incoming payload for new product');
-  console.log('Payload name:', name);
-  console.log('Payload inquiry_code:', inquiry_code);
-  console.log('Payload type:', type);
-
-  console.log('Payload requiredMaterials:', requiredMaterials);
-  console.log('Payload images:', images);
-
   try {
+    const token = await getToken({ req });
+    if (!token || (token.role !== 'direktur' && token.role !== 'admin')) {
+      return NextResponse.json({ message: 'Forbidden: Only Direktur or Admin can add products' }, { status: 403 });
+    }
+
+    const { 
+      name, inquiry_code, category, description, startDate, deadline, 
+      status, requiredMaterials, images, type, custom_attributes, checklist,
+      assignee_ids, order_quantity
+    } = await req.json();
+
     if (!name || !inquiry_code) {
       return NextResponse.json({ message: 'Name and Inquiry Code are required' }, { status: 400 });
     }
 
-    connection = await mysql.createConnection(dbConfig);
+    connection = await createConnection();
     await connection.beginTransaction();
 
-    // Insert new product
+    let valStatus = token.role === 'direktur' ? 'approved' : 'pending';
+
+    // 1. Insert new product
     const [productResult] = await connection.execute(
-      `INSERT INTO products (name, inquiry_code, category, description, start_date, deadline, status, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, inquiry_code, category, description, startDate, deadline, status || 'ongoing', type || 'Standard']
+      `INSERT INTO products (name, inquiry_code, category, description, start_date, deadline, status, type, custom_attributes, validation_status, order_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, inquiry_code, category, description, startDate || null, deadline || null, status || 'ongoing', type || 'Standard', JSON.stringify(custom_attributes || []), valStatus, parseInt(order_quantity) || 0]
     );
     const productId = productResult.insertId;
-    console.log('Product inserted with ID:', productId);
 
-    // Handle required materials
+    // 2. Handle required materials
     if (requiredMaterials && requiredMaterials.length > 0) {
-      console.log('Processing required materials...');
       for (const supplier of requiredMaterials) {
         const materialId = supplier.supplier_id;
-        const quantityNeeded = 1; // Default quantity as it's no longer specified in the UI
-
-        console.log('Material ID from frontend (supplier_id):', materialId);
-        console.log('Default quantity needed:', quantityNeeded);
-
-        // Check if the supplier (material) actually exists in the suppliers table
-        const [existingSupplier] = await connection.execute(
-            'SELECT id FROM suppliers WHERE id = ?',
-            [materialId]
-        );
-        console.log('Existing supplier query result for materialId', materialId, ':', existingSupplier);
-
-
-        if (existingSupplier.length === 0) {
-            await connection.rollback();
-            return NextResponse.json(
-                { message: `Supplier with ID ${materialId} not found.` },
-                { status: 400 }
-            );
-        }
-
-        // Link product to the material (supplier)
-        console.log('Inserting into product_materials:', { productId, materialId, quantityNeeded });
         await connection.execute(
           'INSERT INTO product_materials (product_id, material_id, quantity_needed) VALUES (?, ?, ?)',
-          [productId, materialId, quantityNeeded]
+          [productId, materialId, 1]
         );
       }
     }
 
-    // Handle product images
+    // 3. Handle product images
     if (images && Array.isArray(images) && images.length > 0) {
-      console.log('Processing product images...');
       const imageValues = images.map(imageUrl => [productId, imageUrl]);
-      console.log('Inserting image values:', imageValues);
       await connection.query(
         'INSERT INTO product_images (product_id, image_url) VALUES ?',
         [imageValues]
+      );
+    }
+
+    // 4. Handle initial checklist (from template or manual)
+    if (checklist && Array.isArray(checklist) && checklist.length > 0) {
+      for (const task of checklist) {
+        await connection.execute(
+          'INSERT INTO product_checklists (product_id, task, percentage) VALUES (?, ?, ?)',
+          [productId, task.task_name || task.task, 0]
+        );
+      }
+    }
+
+    // 5. Handle assignees
+    if (assignee_ids && Array.isArray(assignee_ids) && assignee_ids.length > 0) {
+      const assigneeValues = assignee_ids.map(userId => [productId, userId]);
+      await connection.query(
+        'INSERT INTO product_assignees (product_id, user_id) VALUES ?',
+        [assigneeValues]
       );
     }
 
@@ -146,19 +157,15 @@ export async function POST(req) {
     return NextResponse.json({ message: 'Product added successfully', productId }, { status: 201 });
 
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
-    }
-    console.error('Failed to process POST request:', error); // Log the full error
+    if (connection) await connection.rollback();
+    console.error('Failed to process POST request:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json({ message: `Inquiry Code '${inquiry_code}' already exists. Please use a different Inquiry Code.` }, { status: 409 });
+      return NextResponse.json({ message: `Inquiry Code already exists.` }, { status: 409 });
     }
-
     return NextResponse.json({ message: 'Failed to add product', error: error.message }, { status: 500 });
   } finally {
-    if (connection) {
-      await connection.end();
-    }
+    if (connection) connection.release();
   }
 }
+
 

@@ -1,217 +1,296 @@
 "use client"
 
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react"
 import styles from "./dashboard.module.css"
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaBox, FaExclamationTriangle, FaClock, FaArrowRight, FaPlus, FaUsers, FaCog, FaChartLine, FaInfoCircle, FaCalendarCheck, FaBriefcase, FaShieldAlt } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import { SkeletonCard, SkeletonRow, Skeleton } from "@/app/components/ui/Skeleton";
 
-// Helper to sanitize image paths received from the server
-function sanitizeImagePath(path) {
-  if (typeof path !== 'string') return '';
-  let correctedPath = path.replace(/\\/g, '/');
-  const publicIndex = correctedPath.indexOf('public/');
-  if (publicIndex !== -1) {
-    return correctedPath.substring(publicIndex + 'public'.length);
-  }
-  return correctedPath;
-}
-
-// Helper function to format date strings for display
-function formatDateForDisplay(dateString) {
-  if (!dateString) return '';
+// Helper function to format date
+function formatDate(dateString) {
+  if (!dateString) return '-';
   const date = new Date(dateString);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function DashboardPage() {
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [sortOrder, setSortOrder] = useState('deadline-asc');
-
-  async function fetchProducts() {
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/products');
-      if (!res.ok) throw new Error('Failed to fetch products');
-      
-      const data = await res.json();
-      
-      const formattedData = data.map(p => {
-        let images = [];
-        if (typeof p.images === 'string') {
-          try { images = JSON.parse(p.images); } catch (e) { images = [p.images]; }
-        } else if (Array.isArray(p.images)) {
-          images = p.images;
-        }
-        
-        return { ...p, images: Array.isArray(images) ? images.map(sanitizeImagePath) : [] };
-      });
-      setProducts(formattedData);
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const handleDelete = async (e, productId) => {
-    e.stopPropagation();
-    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
-
-    try {
-      const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Gagal menghapus produk');
-      }
-      await fetchProducts(); 
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    }
-  };
-
-  const openModal = (product) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const todayForComparison = new Date();
-  todayForComparison.setHours(0, 0, 0, 0);
-
-  const sortedProducts = [...products].sort((a, b) => {
-    const [sortField, sortDirection] = sortOrder.split('-');
-
-    let compareA, compareB;
-
-    if (sortField.includes('Date') || sortField === 'deadline') {
-      compareA = new Date(a[sortField]);
-      compareB = new Date(b[sortField]);
-
-      // Handle invalid dates by treating them as equal or pushing them to one end
-      if (isNaN(compareA.getTime())) compareA = sortDirection === 'asc' ? -Infinity : Infinity;
-      if (isNaN(compareB.getTime())) compareB = sortDirection === 'asc' ? -Infinity : Infinity;
-      
-    } else { // For string fields like category, type
-      compareA = String(a[sortField]).toLowerCase();
-      compareB = String(b[sortField]).toLowerCase();
-    }
-
-    if (compareA < compareB) {
-      return sortDirection === 'asc' ? -1 : 1;
-    }
-    if (compareA > compareB) {
-      return sortDirection === 'asc' ? 1 : -1;
-    }
-    return 0;
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    lateProducts: 0,
+    nearDeadlineCount: 0,
+    ongoingProducts: 0,
+    completionRate: 0,
+    upcomingDeadlines: []
   });
 
-  return (
-    <>
-      <h1 className={styles.pageTitle}>Dashboard</h1>
+  const [loading, setLoading] = useState(true);
 
-      <div className={styles.productOverview}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle} style={{ marginBottom: '0' }}>Product Overview</h2>
-          <div className={styles.sortContainer}>
-            <label htmlFor="sort-select">Sort by:</label>
-            <select id="sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={styles.sortSelect}>
-              <option value="deadline-asc">Deadline (Soonest First)</option>
-              <option value="deadline-desc">Deadline (Latest First)</option>
-              <option value="startDate-asc">Start Date (Earliest First)</option>
-              <option value="startDate-desc">Start Date (Latest First)</option>
-              <option value="category-asc">Category (A-Z)</option>
-              <option value="category-desc">Category (Z-A)</option>
-              <option value="type-asc">Type (A-Z)</option>
-              <option value="type-desc">Type (Z-A)</option>
-            </select>
-          </div>
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/dashboard/stats', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats", error);
+      } finally {
+        setTimeout(() => setLoading(false), 500); // Small delay for smooth transition
+      }
+    }
+
+    fetchStats();
+  }, []);
+
+
+
+  const getReportTheme = () => {
+    if (stats.lateProducts > 0) return 'danger';
+    if (stats.nearDeadlineCount > 0) return 'warning';
+    return 'success';
+  };
+
+  const theme = getReportTheme();
+
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 }
+  };
+
+  return (
+    <motion.div
+      className={styles.dashboardContainer}
+      translate="no"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
+      <header className={styles.header}>
+        <div className={styles.headerTitles}>
+          <motion.h1 className={styles.title} variants={itemVariants}>Dashboard</motion.h1>
+          <motion.p className={styles.subtitle} variants={itemVariants}>Welcome back! Here&apos;s what&apos;s happening today.</motion.p>
         </div>
         
-        {isLoading && <p>Loading products...</p>}
-        {error && <p>Error: {error}</p>}
-        {!isLoading && !error && products.length === 0 ? (
-          <p>No products available. Add some in Product Development.</p>
+        <motion.div className={styles.headerActions} variants={itemVariants}>
+          <Link href="/product?action=new" className={styles.headerActionLink}>
+            <FaPlus size={18} />
+            <span>New Product</span>
+          </Link>
+          {session?.user?.role === 'direktur' && (
+            <Link href="/validations" className={styles.headerActionLink}>
+              <FaShieldAlt size={18} />
+              <span>Validation</span>
+            </Link>
+          )}
+          {session?.user?.role === 'direktur' && (
+            <Link href="/user-management" className={styles.headerActionLink}>
+              <FaUsers size={18} />
+              <span>User Management</span>
+            </Link>
+          )}
+          {(session?.user?.role === 'direktur' || session?.user?.role === 'admin') && (
+            <Link href="/work-order" className={styles.headerActionLink}>
+              <FaBriefcase size={18} />
+              <span>Progress Order</span>
+            </Link>
+          )}
+          {session?.user?.role === 'direktur' && (
+            <Link href="/settings" className={styles.headerActionLink}>
+              <FaCog size={18} />
+              <span>Settings</span>
+            </Link>
+          )}
+        </motion.div>
+      </header>
+
+      {/* Notifications Section Removed */}
+
+      {/* Summary Cards Section */}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div 
+            key="dashboard-loading-state"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={styles.summaryGrid}
+          >
+            <Skeleton height="120px" borderRadius="14px" />
+            <Skeleton height="120px" borderRadius="14px" />
+            <Skeleton height="120px" borderRadius="14px" />
+            <Skeleton height="120px" borderRadius="14px" />
+          </motion.div>
         ) : (
-          <div className={styles.productList}>
-            {sortedProducts.map((product) => {
-              const isLate = new Date(product.deadline) < todayForComparison;
-              const status = isLate ? "Late" : "Ongoing";
-              const imageSrc = product.images && product.images.length > 0 ? product.images[0] : 'https://via.placeholder.com/150';
-
-              return (
-                <div key={product.id} className={`${styles.productItem} ${isLate ? styles.productItemLate : ''}`} >
-                  <div className={styles.productMainInfo} onClick={() => openModal(product)}>
-                    <img src={imageSrc} alt={product.name} width={60} height={60} className={styles.productImageSmall} />
-                    <div className={styles.productInfo}>
-                      <h3 className={styles.productName}>{product.name}</h3>
-                      <p className={styles.productCategory}>{product.category}</p>
-                      <p className={styles.productType}><strong>Type:</strong> {product.type}</p>
-                      {product.overall_checklist_percentage !== undefined && (
-                        <p className={styles.productProgress}><strong>Progress:</strong> {product.overall_checklist_percentage}%</p>
-                      )}
-                    </div>
-                    <div className={styles.productDates}>
-                      <p><strong>Mulai:</strong> {formatDateForDisplay(product.startDate)}</p>
-                      <p><strong>Deadline:</strong> {formatDateForDisplay(product.deadline)}</p>
-                    </div>
-                    <div className={`${styles.status} ${isLate ? styles.late : styles.ongoing}`}>{status}</div>
-                  </div>
-                  <div className={styles.productActions}>
-                    {isLate && (
-                      <button onClick={(e) => handleDelete(e, product.id)} className={styles.deleteButton}><FaTrash /></button>
-                    )}
-                  </div>
+          <motion.div 
+            key="dashboard-content-loaded"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className={styles.summaryGrid}
+          >
+            <motion.div 
+              key="card-progress"
+              className={`${styles.summaryCard} ${styles.bgProgress}`}
+              variants={itemVariants}
+            >
+              <div className={styles.tileHeader}>
+                <FaChartLine />
+                <span>TOTAL PROGRESS</span>
+              </div>
+              <div className={styles.tileBody}>
+                <span className={styles.tileValue}>{stats.completionRate}%</span>
+                <div className={styles.tileProgressBar}>
+                  <div className={styles.tileProgressBarFill} style={{ width: `${stats.completionRate}%` }}></div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            </motion.div>
 
-      {isModalOpen && selectedProduct && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{selectedProduct.name}</h2>
-            <div className={styles.modalBody}>
-              <img 
-                src={selectedProduct.images && selectedProduct.images.length > 0 ? selectedProduct.images[0] : 'https://via.placeholder.com/150'}
-                alt={selectedProduct.name}
-                width={150} height={150} 
-                className={styles.modalImage}
-              />
-              {selectedProduct.type === 'New Product' && (
-                <p><strong>SKU:</strong> {selectedProduct.inquiry_code}</p>
-              )}
-              {selectedProduct.type === 'Custom' && (
-                <p><strong>Inquiry Code:</strong> {selectedProduct.inquiry_code}</p>
-              )}
-              <p><strong>Kategori:</strong> {selectedProduct.category}</p>
-              <p><strong>Deskripsi:</strong> {selectedProduct.description}</p>
-              <p><strong>Tanggal Mulai:</strong> {formatDateForDisplay(selectedProduct.startDate)}</p>
-              <p><strong>Deadline:</strong> {formatDateForDisplay(selectedProduct.deadline)}</p>
-            </div>
-            <div className={styles.modalActions}>
-              <button onClick={closeModal} className={styles.closeButton}>Close</button>
-            </div>
+            <motion.div 
+              key="card-timeline"
+              className={`${styles.summaryCard} ${theme === 'danger' ? styles.bgTimelineDanger : styles.bgTimeline}`}
+              variants={itemVariants}
+            >
+              <div className={styles.tileHeader}>
+                <FaExclamationTriangle />
+                <span>TIMELINE STATUS</span>
+              </div>
+              <div className={styles.tileBody}>
+                <div className={styles.miniStatRow}>
+                  <span className={styles.miniStatLabel}>Overdue</span>
+                  <span className={`${styles.miniStatValue} ${styles.textDanger}`}>{stats.lateProducts}</span>
+                </div>
+                <div className={styles.miniStatRow}>
+                  <span className={styles.miniStatLabel}>Near (H-7)</span>
+                  <span className={`${styles.miniStatValue} ${styles.textWarning}`}>{stats.nearDeadlineCount}</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              key="card-workload"
+              className={`${styles.summaryCard} ${styles.bgWorkload}`}
+              variants={itemVariants}
+            >
+              <div className={styles.tileHeader}>
+                <FaBox />
+                <span>WORKLOAD</span>
+              </div>
+              <div className={styles.tileBody}>
+                <span className={styles.tileValue}>{stats.totalProducts}</span>
+                <span className={styles.tileSubtext}>Active Projects</span>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              key="card-action"
+              className={`${styles.summaryCard} ${styles.bgAction}`}
+              variants={itemVariants}
+            >
+              <div className={styles.tileHeader}>
+                <FaInfoCircle />
+                <span>ACTION REQUIRED</span>
+              </div>
+              <div className={styles.tileBody}>
+                <p className={styles.reportSummaryText}>
+                  {stats.lateProducts > 0 
+                    ? `Selesaikan segera ${stats.lateProducts} produk yang terlambat.` 
+                    : stats.nearDeadlineCount > 0 
+                    ? `Focus pada ${stats.nearDeadlineCount} produk dengan deadline terdekat.`
+                    : "Semua berjalan lancar. Teruskan progresmu!"}
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content: Table Section */}
+      {!loading && (
+        <motion.div 
+          className={styles.contentSection} 
+          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className={styles.sectionHeader}>
+            <h3>Upcoming Deadlines</h3>
+            <Link href="/product" className={styles.viewAllLink}>View All <FaArrowRight size={12} /></Link>
           </div>
-        </div>
+
+          <div className={styles.tableContainer}>
+            <table className={styles.dashboardTable}>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Deadline</th>
+                  <th>Progress</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.upcomingDeadlines.length > 0 ? (
+                  stats.upcomingDeadlines.map(product => (
+                    <tr key={`row-${product.id}`} onClick={() => router.push(`/product/${product.id}`)} className={styles.clickableRow}>
+                      <td>
+                        <div className={styles.productName}>{product.name}</div>
+                        <div className={styles.productSku}>{product.inquiry_code}</div>
+                      </td>
+                      <td>{formatDate(product.deadline)}</td>
+                      <td>
+                        <div className={styles.progressContainer}>
+                          <div className={styles.progressBar}>
+                            <div
+                              className={styles.progressFill}
+                              style={{ width: `${product.overallChecklistPercentage}%` }}
+                            ></div>
+                          </div>
+                          <div className={styles.progressLabelGroup}>
+                            <span className={styles.progressText}>{product.overallChecklistPercentage}%</span>
+                            <span className={styles.progressDetail}>{product.completed_tasks} / {product.total_tasks} Tasks</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${styles['status' + (product.status || 'Ongoing').replace(/\s+/g, '')] || styles.statusOngoing}`}>
+                          {product.status || 'Ongoing'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Link href={`/product/${product.id}`} className={styles.detailsBtn}>
+                          Details <FaArrowRight size={10} />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No upcoming deadlines</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
       )}
-    </>
+    </motion.div>
   )
 }

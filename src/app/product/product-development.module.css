@@ -1,26 +1,23 @@
 .container {
   padding: 40px;
   min-height: 100vh;
-  background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=2100&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
-  background-size: cover;
-  background-position: center;
-  color: #f0f0f0;
+  background-color: #f8fafc;
+  color: #1a202c;
 }
 
 .pageContainer {
-  background: rgba(0, 0, 0, 0.8); /* Increased opacity for better readability */
-  backdrop-filter: blur(10px);
+  background: #ffffff;
   padding: 40px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  border: 1px solid #edf2f7;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: auto;
   position: relative;
-  color: #f0f0f0;
   display: flex;
   flex-direction: column;
-  height: 100%; /* Make it fill the parent's height */
+  height: calc(100vh - 80px); /* Kunci tinggi kontainer utama */
 }
 
 .backButtonContainer {
@@ -34,15 +31,18 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  color: #f0f0f0;
+  border-radius: 10px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
   text-decoration: none;
+  font-weight: 600;
   transition: all 0.3s ease;
 }
 
 .backButton:hover {
-  background: rgba(0, 0, 0, 0.4);
+  background: #edf2f7;
+  border-color: #cbd5e0;
 }
 
 .titleContainer {
@@ -51,19 +51,55 @@
   justify-content: center;
   gap: 15px;
   margin-bottom: 30px;
-  padding-top: 40px; /* Add padding to avoid overlap with back button */
+  padding-top: 20px;
 }
 
 .titleIcon {
-  font-size: 2.2rem; /* Slightly smaller than title */
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+  font-size: 2.2rem;
+  color: #3182ce;
 }
 
 .title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
-  margin: 0; /* Remove default margins */
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.viewToggleGroup {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.viewToggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewToggleBtn:hover {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+.viewToggleBtn.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .toolbar {
@@ -71,36 +107,97 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  background: #f8fafc;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  gap: 20px;
 }
 
+.toolsLeft {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.toolItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.searchWrapper {
+  flex: 1;
+  max-width: 400px;
+  position: relative;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.sortContainer {
+  display: none; /* Hide old container */
+}
 
 .buttonGroup {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .addButton {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 8px;
-  background: #2c7a7b;
+  border-radius: 12px;
+  background: #3182ce;
   color: white;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s;
+  box-shadow: 0 4px 6px rgba(49, 130, 206, 0.2);
 }
 
 .addButton:hover {
-  background: #285e61;
+  background: #2b6cb0;
   transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(49, 130, 206, 0.3);
+}
+
+.addCustomButton {
+  background: #2d3748;
+}
+
+.addCustomButton:hover {
+  background: #1a202c;
 }
 
 .tableContainer {
-  overflow: auto; /* Use 'auto' for both x and y */
-  flex-grow: 1; /* Allow this container to fill remaining space */
-  min-height: 0; /* Important for flex-grow in a scrolling container */
+  overflow-y: auto;
+  overflow-x: auto;
+  flex-grow: 1;
+  min-height: 0;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #edf2f7;
 }
 
 .productTable {
@@ -110,55 +207,150 @@
 }
 
 .productTable th, .productTable td {
-  padding: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 18px 24px;
+  border-bottom: 1px solid #edf2f7;
   vertical-align: middle;
 }
 
-.productTable th:nth-child(2),
-.productTable td:nth-child(2) { /* Targeting the Product Name column */
-  width: 25%; /* Give it more space */
-  min-width: 150px; /* Ensure it's not too small */
-  max-width: 300px; /* Prevent it from taking too much space */
+.productTable th {
+  background: #f8fafc;
+  color: #718096;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #edf2f7;
+  position: sticky; /* Judul tabel menempel */
+  top: 0;
+  z-index: 10;
 }
 
-.productTable td:nth-child(2) a { /* Styling the product name link */
-  font-size: 1.1rem; /* Slightly larger font */
-  font-weight: 600; /* Bolder */
-  color: #f0f0f0; /* Ensure good contrast */
-  text-decoration: none; /* Remove default underline */
-  display: block; /* Allow padding and margin */
-  word-wrap: break-word; /* Ensure long words break */
-  white-space: normal; /* Ensure text wraps normally */
-  transition: color 0.2s ease-in-out;
+.productTable td {
+  padding: 16px 20px;
+  color: #2d3748;
+  white-space: nowrap;
+}
+
+.productTable td:nth-child(2) {
+  white-space: normal;
+  min-width: 200px;
+}
+
+.productTable td:nth-child(3) {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #4a5568;
+  width: 180px;
+}
+
+.productTable td:nth-child(4),
+.productTable td:nth-child(5) {
+  width: 120px;
+}
+
+.productTable td:nth-child(6),
+.productTable td:nth-child(7) {
+  width: 130px;
+}
+
+.productTable td:nth-child(8) {
+  width: 100px;
+  text-align: center;
+}
+
+.productTable th:nth-child(8) {
+  text-align: center;
+}
+
+.productTable tr:last-child td {
+  border-bottom: none;
+}
+
+.clickableRow {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickableRow:hover {
+  background-color: #f7fafc !important;
+  box-shadow: inset 3px 0 0 #3182ce;
+}
+
+.productTable tr:hover {
+  background: #fcfcfd;
+}
+
+.productTable td:nth-child(2) a {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a202c;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .productTable td:nth-child(2) a:hover {
-  color: #2c7a7b; /* Highlight on hover */
-  text-decoration: underline; /* Add underline on hover */
+  color: #3182ce;
+  text-decoration: underline;
 }
 
-.productTable th {
+.productNameButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1rem;
   font-weight: 600;
-  text-align: left; /* Changed from center to left to align with td */
+  color: #1a202c;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+.productNameButton:hover {
+  color: #3182ce;
+  text-decoration: underline;
 }
 
 .productImage {
   border-radius: 8px;
   object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+
+.actionButtons {
+  vertical-align: middle;
+  width: 100px;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
 }
 
 .actionButtons button {
-  background: none;
+  background: transparent;
   border: none;
-  color: #f0f0f0;
+  color: #718096;
   cursor: pointer;
-  margin-right: 10px;
   font-size: 1.1rem;
+  transition: all 0.2s;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actionButtons button:hover {
-  color: #2c7a7b;
+  background: #edf2f7;
+  color: #3182ce;
+}
+
+.actionButtons button:last-child:hover {
+  background: #fff5f5;
+  color: #e53e3e;
 }
 
 /* Modal Styles */
@@ -168,8 +360,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -177,205 +369,347 @@
 }
 
 .modalContent {
-  background: rgba(27, 40, 56, 0.9); /* Darker, less transparent background */
-  backdrop-filter: blur(10px);
-  padding: 30px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
 }
 
+.detailModalContent {
+  max-width: 800px;
+}
+
 .modalTitle {
-  font-size: 1.8rem;
-  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin-bottom: 25px;
 }
 
 .formGroup {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .formGroup label {
   display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin-bottom: 8px;
+  text-transform: uppercase;
 }
 
-.formGroup input, .formGroup textarea {
+.formGroup input, .formGroup textarea, .formGroup select {
   width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: #f0f0f0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #2d3748;
   font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.formGroup input:focus, .formGroup textarea:focus, .formGroup select:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
 }
 
 .formGroup input[type="file"] {
-  padding: 0;
+  padding: 8px 0;
   background: transparent;
   border: none;
 }
 
 .formGroup input[type="file"]::file-selector-button {
-  padding: 8px 16px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 8px;
-  background: #2c7a7b;
-  color: white;
+  border-radius: 10px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
+  margin-right: 15px;
 }
 
 .formGroup input[type="file"]::file-selector-button:hover {
-  background: #285e61;
+  background: #edf2f7;
 }
 
 .modalActions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.cancelButton, .saveButton {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  gap: 15px;
+  margin-top: 30px;
 }
 
 .cancelButton {
-  background: #718096;
-  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
 .cancelButton:hover {
-  background: #4a5568;
+  background: #edf2f7;
 }
 
 .saveButton {
-  background: #2c7a7b;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 10px;
+  background: #3182ce;
   color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
 .saveButton:hover {
-  background: #285e61;
+  background: #2b6cb0;
 }
 
 .status {
-  padding: 5px 12px;
-  border-radius: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 700;
   text-align: center;
   display: inline-block;
+  text-transform: uppercase;
 }
 
 .ongoing {
-  background-color: rgba(56, 161, 105, 0.2);
-  color: #38a169;
+  background-color: #ebf8ff;
+  color: #3182ce;
 }
 
 .late {
-  background-color: rgba(229, 62, 62, 0.2);
+  background-color: #fff5f5;
   color: #e53e3e;
 }
 
-.productImageContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.imagePreviewContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-/* Sort Container Styles */
 .sortContainer {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background-color: #f8f9fa; /* Light solid color for consistency */
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6; /* Light border */
+  gap: 12px;
+  background-color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .sortContainer label {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.9rem;
-  color: #495057; /* Dark text for readability */
+  color: #4a5568;
 }
 
 .sortSelect {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #ced4da; /* Light border */
-  background-color: #fff; /* White solid background */
-  color: #495057; /* Dark text for readability */
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #2d3748;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 }
 
 .sortSelect:focus {
   outline: none;
-  border-color: #80bdff; /* Focus blue */
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Focus shadow */
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
 }
 
 /* Custom Scrollbar Styles */
-.tableContainer::-webkit-scrollbar {
-  height: 10px; /* Keep height for horizontal scrollbar */
+.tableContainer::-webkit-scrollbar, .modalContent::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.tableContainer::-webkit-scrollbar-track {
-  background: #e9ecef; /* Opaque track, same as dashboard */
+.tableContainer::-webkit-scrollbar-track, .modalContent::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.tableContainer::-webkit-scrollbar-thumb, .modalContent::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
   border-radius: 10px;
 }
 
-.tableContainer::-webkit-scrollbar-thumb {
-  background: #adb5bd; /* Lighter thumb */
-  border-radius: 10px;
+.tableContainer::-webkit-scrollbar-thumb:hover, .modalContent::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
-.tableContainer::-webkit-scrollbar-thumb:hover {
-  background: #868e96; /* Lighter thumb hover */
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
 }
 
-.modalContent::-webkit-scrollbar {
-  width: 8px; /* Keep width for vertical scrollbar */
+/* Assignee Checklist Styles */
+.assigneeChecklistContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 5px;
 }
 
-.modalContent::-webkit-scrollbar-track {
-  background: #e9ecef; /* Opaque track, same as dashboard */
-  border-radius: 10px;
+.assigneeChecklistItem {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 0 !important;
+    background: #ffffff;
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
 }
 
-.modalContent::-webkit-scrollbar-thumb {
-  background: #adb5bd; /* Lighter thumb */
-  border-radius: 10px;
+.assigneeChecklistItem:hover {
+    border-color: #cbd5e0;
+    background: #fdfdfd;
 }
 
-.modalContent::-webkit-scrollbar-thumb:hover {
-  background: #868e96; /* Lighter thumb hover */
+.assigneeChecklistItem.selected {
+    border-color: #3182ce;
+    background: #ebf8ff;
 }
 
-/* Specific padding for Start Date and Deadline columns in product table */
-.productTable td:nth-child(6),
-.productTable td:nth-child(7) {
-  padding-right: 30px; /* Increased padding for more space */
-  padding-left: 30px; /* Increased padding for more space */
-  white-space: nowrap; /* Prevent date text from wrapping */
+.assigneeCheckbox {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    margin: 0;
+    font: inherit;
+    color: currentColor;
+    width: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+    flex-shrink: 0;
+    border: 2px solid #cbd5e0;
+    border-radius: 6px;
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.assigneeCheckbox::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em white;
+    background-color: white;
+    transform-origin: center;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.assigneeCheckbox:checked {
+    background-color: #3182ce;
+    border-color: #3182ce;
+}
+
+.assigneeCheckbox:checked::before {
+    transform: scale(1);
+}
+
+.assigneeLabel {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #2d3748;
+    flex: 1;
+    text-align: left;
+}
+
+/* Modern List for Suppliers and Checklist Tasks */
+.modernListContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.modernListItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    color: #2d3748;
+    transition: all 0.2s;
+}
+
+.modernListItem:hover {
+    background: #f8fafc;
+    border-color: #cbd5e0;
+}
+
+.modernListItemText {
+    flex: 1;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.modernListDeleteBtn {
+    color: #94a3b8;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.modernListDeleteBtn:hover {
+    background: #fff5f5;
+    color: #e53e3e;
+}
+
+/* Custom Attributes Row */
+.attributeRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: center;
+}
+
+.attributeInput {
+    flex: 1;
+}
+
+.attributeSeparator {
+    color: #94a3b8;
+    font-weight: bold;
 }

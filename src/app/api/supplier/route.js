@@ -1,19 +1,10 @@
-// jalin-alam/src/app/api/supplier/route.js
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-
-// Database connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'jalin_alam_db',
-};
+import createConnection from '@/app/lib/db';
 
 export async function GET() {
   let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
+    connection = await createConnection();
     const [rows] = await connection.execute('SELECT * FROM suppliers ORDER BY id DESC');
     return NextResponse.json(rows);
   } catch (error) {
@@ -21,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ message: 'Failed to fetch suppliers', error: error.message }, { status: 500 });
   } finally {
     if (connection) {
-      await connection.end();
+      connection.release();
     }
   }
 }
@@ -35,7 +26,7 @@ export async function POST(req) {
       return NextResponse.json({ message: 'Name is required' }, { status: 400 });
     }
 
-    connection = await mysql.createConnection(dbConfig);
+    connection = await createConnection();
     await connection.execute(
       `INSERT INTO suppliers (name, contact_info_text, supplier_description) VALUES (?, ?, ?)`,
       [name, contact_info_text || '', supplier_description || '']
@@ -51,7 +42,7 @@ export async function POST(req) {
     return NextResponse.json({ message: 'Failed to add supplier', error: error.message }, { status: 500 });
   } finally {
     if (connection) {
-      await connection.end();
+      connection.release();
     }
   }
 }

@@ -1,0 +1,81 @@
+/* Notification Styles */
+.notificationsWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.alertBanner {
+    display: flex;
+    align-items: center;
+    background-color: #ebf8ff;
+    border-left: 4px solid #3182ce;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.alertIcon {
+    color: #3182ce;
+    font-size: 1.2rem;
+    margin-right: 12px;
+}
+
+.alertMessage {
+    flex: 1;
+    color: #2d3748;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.alertAction {
+    background-color: #3182ce;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    margin-right: 10px;
+    transition: background 0.2s;
+}
+
+.alertAction:hover {
+    background-color: #2b6cb0;
+}
+
+.alertDismiss {
+    background: transparent;
+    border: none;
+    color: #a0aec0;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.alertDismiss:hover {
+    color: #48bb78;
+}
+
+.historyLinkWrapper {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.viewHistoryLink {
+    color: #718096;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.viewHistoryLink:hover {
+    color: #3182ce;
+    text-decoration: underline;
+}

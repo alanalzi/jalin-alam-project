@@ -19,71 +19,94 @@ export default function DashboardLayout({ children, centerContent = false }) {
     }
   }, [status, router])
 
-  if (status === "loading") {
-    return <p className="text-center mt-10">Loading...</p>
-  }
+  // Don't render content until we know authentication status
+  // but keep the layout structure stable to avoid hydration/DOM errors
+  const isLoading = status === "loading"
+  const isAuthenticated = status === "authenticated"
 
   return (
     <div className={styles.dashboardLayout}>
       <aside className={styles.sidebar}>
-        <div>
+        {isAuthenticated ? (
+          <div>
+            <div className={styles.logoContainer}>
+              <img src="/logo.jpg" alt="Logo Jalin Alam" className={styles.logo} />
+              <h2 className={styles.appName}>Jalin Alam</h2>
+            </div>
+
+            <div className={styles.userInfoTop}>
+              <div>
+                <p className={styles.welcomeText}>
+                  Halo {session?.user?.name || "User"}
+                </p>
+                <small className={styles.userEmail}>{session?.user?.email}</small>
+              </div>
+              <button onClick={() => signOut()} className={styles.logoutButton} title="Logout">
+                <FaPowerOff />
+              </button>
+            </div>
+
+            <div className={styles.sidebarMenu}>
+              <Link href="/dashboard" className={`${styles.sidebarMenuItem} ${pathname === '/dashboard' ? styles.active : ''}`}>
+                <FaCog className={styles.menuIcon} />
+                <span>Overview</span>
+              </Link>
+              <Link href="/inquiries" className={`${styles.sidebarMenuItem} ${pathname === '/inquiries' ? styles.active : ''}`}>
+                <FaFileInvoice className={styles.menuIcon} />
+                <span>Inquiry Management</span>
+              </Link>
+              <Link href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
+                <FaBoxOpen className={styles.menuIcon} />
+                <span>Product Development</span>
+              </Link>
+              {(role === "direktur") && (
+                <Link href="/validations" className={`${styles.sidebarMenuItem} ${pathname === '/validations' ? styles.active : ''}`}>
+                  <FaUserShield className={styles.menuIcon} />
+                  <span>Validation</span>
+                </Link>
+              )}
+              <Link href="/supplier" className={`${styles.sidebarMenuItem} ${pathname === '/supplier' ? styles.active : ''}`}>
+                <FaUsersCog className={styles.menuIcon} />
+                <span>Supplier</span>
+              </Link>
+              <Link href="/work-order" className={`${styles.sidebarMenuItem} ${pathname === '/work-order' ? styles.active : ''}`}>
+                <FaFileInvoice className={styles.menuIcon} />
+                <span>Progress Order</span>
+              </Link>
+
+              {(role === "direktur") && (
+                <Link href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
+                  <FaCog className={styles.menuIcon} />
+                  <span>Settings</span>
+                </Link>
+              )}
+              {(role === "direktur") && (
+                <Link href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
+                  <FaUserShield className={styles.menuIcon} />
+                  <span>User Management</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : (
           <div className={styles.logoContainer}>
-            <img src="/logo.jpg" alt="Logo Jalin Alam" className={styles.logo} />
+            {/* Minimal logo for loading/unauth states to keep sidebar structure */}
             <h2 className={styles.appName}>Jalin Alam</h2>
           </div>
-
-          <div className={styles.userInfoTop}>
-            <div>
-              <p className={styles.welcomeText}>
-                Halo {session?.user?.name || "User"}
-              </p>
-              <small className={styles.userEmail}>{session?.user?.email}</small>
-            </div>
-            <button onClick={() => signOut()} className={styles.logoutButton} title="Logout">
-              <FaPowerOff />
-            </button>
-          </div>
-
-          <div className={styles.sidebarMenu}>
-            <Link href="/inquiries" className={`${styles.sidebarMenuItem} ${pathname === '/inquiries' ? styles.active : ''}`}>
-              <FaFileInvoice className={styles.menuIcon} />
-              <span>Inquiry Management</span>
-            </Link>
-            <Link href="/product" className={`${styles.sidebarMenuItem} ${pathname === '/product' ? styles.active : ''}`}>
-              <FaBoxOpen className={styles.menuIcon} />
-              <span>Product Development</span>
-            </Link>
-            <Link href="/supplier" className={`${styles.sidebarMenuItem} ${pathname === '/supplier' ? styles.active : ''}`}>
-              <FaBoxOpen className={styles.menuIcon} /> {/* Using FaBoxOpen for materials */}
-              <span>Supplier</span>
-            </Link>
-
-            {(role === "admin" || role === "direktur") && (
-              <Link href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
-                <FaUsersCog className={styles.menuIcon} />
-                <span>Production Management</span>
-              </Link>
-            )}
-
-            {(role === "direktur") && (
-              <Link href="/user-management" className={`${styles.sidebarMenuItem} ${pathname === '/user-management' ? styles.active : ''}`}>
-                <FaUserShield className={styles.menuIcon} />
-                <span>User Management</span>
-              </Link>
-            )}
-            {/* <Link href="/settings" className={`${styles.sidebarMenuItem} ${pathname === '/settings' ? styles.active : ''}`}>
-              <FaCog className={styles.menuIcon} />
-              <span>Setting & Report</span>
-            </Link> */}
-          </div>
-        </div>
+        )}
 
         <div className={styles.userInfoBottom}>
         </div>
       </aside>
 
       <main className={`${styles.dashboardContent} ${centerContent ? styles.dashboardContentCentered : ''}`}>
-        {children}
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#64748b' }}>
+            <p>Loading session...</p>
+          </div>
+        ) : isAuthenticated ? (
+          children
+        ) : null}
       </main>
     </div>
   )

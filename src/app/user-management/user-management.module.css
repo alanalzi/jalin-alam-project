@@ -1,0 +1,349 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    padding: 40px;
+    gap: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.header {
+    margin-bottom: 10px;
+}
+
+.title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #1a202c;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    letter-spacing: -0.02em;
+}
+
+.titleIcon {
+    color: #3182ce;
+}
+
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.inviteButton {
+    background: #3182ce;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(49, 130, 206, 0.2);
+}
+
+.inviteButton:hover {
+    background: #2b6cb0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(49, 130, 206, 0.3);
+}
+
+.searchContainer {
+    position: relative;
+    max-width: 450px;
+    width: 100%;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 14px 16px 14px 45px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+}
+
+.searchIcon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a0aec0;
+}
+
+/* Table Design */
+.tableWrapper {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    border: 1px solid #edf2f7;
+    overflow: hidden;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    padding: 18px 24px;
+    text-align: left;
+    background: #f8fafc;
+    color: #718096;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #edf2f7;
+}
+
+.table td {
+    padding: 18px 24px;
+    border-bottom: 1px solid #edf2f7;
+    color: #2d3748;
+    vertical-align: middle;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table tr:hover {
+    background: #fcfcfd;
+}
+
+.userName {
+    font-weight: 600;
+    color: #1a202c;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.userAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3182ce;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.userEmail {
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+/* Role Dropdown */
+.roleSelectWrapper {
+    position: relative;
+    width: fit-content;
+}
+
+.roleSelect {
+    appearance: none;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    padding: 8px 35px 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.roleSelect:not(:disabled):hover {
+    border-color: #cbd5e0;
+    background: #edf2f7;
+}
+
+.roleSelect:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.selectArrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #a0aec0;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Badges for Join Date */
+.dateText {
+    font-size: 0.85rem;
+    color: #4a5568;
+    font-weight: 500;
+}
+
+/* Quick Actions */
+.actions {
+    display: flex;
+    justify-content: center;
+}
+
+.deleteButton {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #e53e3e;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.deleteButton:not(:disabled):hover {
+    background: #fff5f5;
+    transform: scale(1.1);
+}
+
+.deleteButton:disabled {
+    color: #e2e8f0;
+    cursor: not-allowed;
+}
+
+/* Empty State */
+.emptyState {
+    padding: 60px 0;
+    text-align: center;
+    color: #a0aec0;
+}
+
+.emptyIcon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+/* Modal Styles */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalTitle {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1a202c;
+    margin-bottom: 10px;
+}
+
+.modalSubtitle {
+    color: #718096;
+    margin-bottom: 25px;
+    font-size: 0.95rem;
+}
+
+.formGroup {
+    margin-bottom: 20px;
+}
+
+.formGroup label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #4a5568;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.modalInput {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 1rem;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.cancelButton {
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.submitButton {
+    padding: 12px 24px;
+    border-radius: 10px;
+    background: #3182ce;
+    border: none;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.submitButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Whitelist Section */
+.whitelistHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 40px;
+    margin-bottom: 20px;
+}
+
+.sectionTitle {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #2d3748;
+}

@@ -1,13 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import styles from "../product/product-development.module.css"; // Reusing styles for now
+import styles from "./supplier.module.css";
 import { FaArrowLeft, FaEdit, FaTrash, FaTruck } from "react-icons/fa";
 
 export default function SupplierPage() {
   const [materials, setMaterials] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: "", contact_info_text: "", supplier_description: "" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("newest"); // newest, oldest, name_asc, name_desc
 
   async function fetchMaterials() {
     try {
@@ -35,6 +37,24 @@ export default function SupplierPage() {
   useEffect(() => {
     fetchMaterials();
   }, []);
+
+  // Filter and Sort Logic
+  const filteredMaterials = materials
+    .filter((material) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        material.name.toLowerCase().includes(query) ||
+        (material.supplier_description && material.supplier_description.toLowerCase().includes(query)) ||
+        (material.contact_info_text && material.contact_info_text.toLowerCase().includes(query))
+      );
+    })
+    .sort((a, b) => {
+      if (sortOption === "newest") return b.id - a.id;
+      if (sortOption === "oldest") return a.id - b.id;
+      if (sortOption === "name_asc") return a.name.localeCompare(b.name);
+      if (sortOption === "name_desc") return b.name.localeCompare(a.name);
+      return 0;
+    });
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
@@ -117,7 +137,30 @@ export default function SupplierPage() {
       </div>
 
       <div className={styles.toolbar}>
-        <button onClick={openModal} className={styles.addButton}>Add Supplier</button>
+        {/* Helper div for alignment if needed, or just use flex gap */}
+        <div className={styles.searchContainer}>
+          <input
+            type="text"
+            placeholder="Search suppliers..."
+            className={styles.searchInput}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className={styles.buttonGroup}>
+          <select
+            className={styles.sortSelect}
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+          </select>
+          <button onClick={openModal} className={styles.addButton}>Add Supplier</button>
+        </div>
       </div>
 
       <div className={styles.tableContainer}>
@@ -131,7 +174,7 @@ export default function SupplierPage() {
             </tr>
           </thead>
           <tbody>
-            {materials.map((material) => (
+            {filteredMaterials.map((material) => (
               <tr key={material.id}>
                 <td>{material.name}</td>
                 <td>{material.contact_info_text}</td>
