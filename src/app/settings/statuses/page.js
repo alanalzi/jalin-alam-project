@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import { FaArrowLeft, FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaPalette, FaCheckCircle } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,7 +43,7 @@ export default function StatusesPage() {
                 setNewStatus({ name: '', color: '#3182ce' });
                 fetchStatuses();
             } else {
-                alert("Failed to create status");
+                toast.error("Failed to create status");
             }
         } catch (error) {
             console.error(error);

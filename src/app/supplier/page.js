@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import styles from "./supplier.module.css";
 import { FaArrowLeft, FaEdit, FaTrash, FaTruck } from "react-icons/fa";
@@ -29,7 +30,7 @@ export default function SupplierPage() {
       }
     } catch (error) {
       console.error("Error fetching suppliers:", error);
-      alert(`Error fetching suppliers: ${error.message}`);
+      toast.error(`Error fetching suppliers: ${error.message}`);
       setMaterials([]);
     }
   }
@@ -95,7 +96,7 @@ export default function SupplierPage() {
       }
     } catch (error) {
       console.error("Error submitting raw material:", error);
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -122,7 +123,7 @@ export default function SupplierPage() {
       }
     } catch (err) {
       console.error("Error in handleDelete:", err);
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 

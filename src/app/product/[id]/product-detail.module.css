@@ -10,6 +10,20 @@
   min-height: calc(100vh - 2rem);
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinnerSmall {
+  display: inline-block;
+}
+
 .backLink {
   display: flex;
   align-items: center;
@@ -587,7 +601,7 @@
 .statusCancelled {
   background-color: #f3f4f6;
   /* gray-100 */
-  color: #374151;
+  color: #ef4444;
   /* gray-700 */
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
@@ -641,20 +655,25 @@
 }
 
 .cancelButton {
-  background-color: #6b7280;
-  /* gray-500 */
+  background-color: #ef4444;
+  /* red-500 */
   color: white;
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
 }
 
 .cancelButton:hover {
-  background-color: #4b5563;
-  /* gray-600 */
+  background-color: #dc2626;
+  /* red-600 */
+  transform: translateY(-1px);
 }
 
 /* Premium Redesign Classes */
@@ -722,7 +741,8 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  min-width: 0; /* Prevent grid blowout */
+  min-width: 0;
+  /* Prevent grid blowout */
 }
 
 .activityCol {
@@ -840,6 +860,7 @@
   .detailGrid {
     grid-template-columns: 320px 1fr;
   }
+
   .activityCol {
     position: static;
     height: auto;

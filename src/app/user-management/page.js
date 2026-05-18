@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import toast from "react-hot-toast"
 import { FaTrash, FaSearch, FaUserTag, FaExclamationCircle, FaUserPlus, FaEnvelopeOpenText } from "react-icons/fa"
 import { motion, AnimatePresence } from "framer-motion"
 import { SkeletonRow, Skeleton } from "@/app/components/ui/Skeleton"
@@ -61,15 +62,15 @@ export default function UserManagementPage() {
 
             const data = await res.json()
             if (res.ok) {
-                alert("User invited successfully!")
+                toast.success("User invited successfully!")
                 setInviteEmail("")
                 setShowInviteModal(false)
                 fetchData() // Refresh list
             } else {
-                alert(data.message || "Failed to invite user")
+                toast.error(data.message || "Failed to invite user")
             }
         } catch (error) {
-            alert("An error occurred while inviting")
+            toast.error("An error occurred while inviting")
         } finally {
             setIsInviting(false)
         }
@@ -101,10 +102,10 @@ export default function UserManagementPage() {
                 setUsers(prev =>
                     prev.map(user => (user.id === id ? { ...user, role: newRole } : user))
                 )
-                alert("Role updated successfully!")
+                toast.success("Role updated successfully!")
             } else {
                 const errorData = await res.json()
-                alert(`Error: ${errorData.message}`)
+                toast.error(`Error: ${errorData.message}`)
             }
         } catch (error) {
             console.error("Error updating role:", error)
@@ -121,10 +122,10 @@ export default function UserManagementPage() {
 
             if (res.ok) {
                 setUsers(prev => prev.filter(user => user.id !== id))
-                alert(`User ${name} deleted successfully.`)
+                toast.success(`User ${name} deleted successfully.`)
             } else {
                 const errorData = await res.json()
-                alert(`Error: ${errorData.message || res.statusText}`)
+                toast.error(`Error: ${errorData.message || res.statusText}`)
             }
         } catch (error) {
             console.error("Error deleting user:", error)

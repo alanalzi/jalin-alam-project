@@ -102,6 +102,49 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Tabbed Interface Styles */
+.tabGroup {
+  display: flex;
+  gap: 24px;
+  border-bottom: 2px solid #f1f5f9;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.tabBtn {
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  border-radius: 8px 8px 0 0;
+}
+
+.tabBtn:hover {
+  color: #3182ce;
+  background-color: #f1f5f9;
+}
+
+.activeTab {
+  color: #3182ce !important;
+  background-color: transparent !important;
+}
+
+.activeTab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #3182ce;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -697,19 +740,4 @@
     color: #e53e3e;
 }
 
-/* Custom Attributes Row */
-.attributeRow {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
-    align-items: center;
-}
 
-.attributeInput {
-    flex: 1;
-}
-
-.attributeSeparator {
-    color: #94a3b8;
-    font-weight: bold;
-}

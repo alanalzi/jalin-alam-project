@@ -18,10 +18,12 @@ export async function GET(request) {
         CASE WHEN p.type = 'Custom' THEN COALESCE(i.product_description, p.description) ELSE p.description END as description,
         p.start_date AS startDate,
         p.deadline,
-        p.order_quantity,
+        CASE WHEN p.type = 'Custom' THEN COALESCE(i.order_quantity, p.order_quantity) ELSE p.order_quantity END as order_quantity,
         p.created_at,
         CASE 
-          WHEN (p.status != 'Done' AND p.status != 'Selesai' OR p.status IS NULL) AND p.deadline < CURDATE() THEN 'Late'
+          WHEN p.status = 'cancelled' THEN 'cancelled'
+          WHEN p.status IN ('Done', 'Selesai', 'completed') AND p.completed_at > p.deadline THEN 'Late Done'
+          WHEN (p.status NOT IN ('Done', 'Selesai', 'completed', 'cancelled') OR p.status IS NULL) AND p.deadline < CURDATE() THEN 'Late'
           ELSE COALESCE(p.status, 'Ongoing')
         END AS status,
         p.validation_status,
@@ -32,7 +34,8 @@ export async function GET(request) {
         p.custom_attributes,
         GROUP_CONCAT(pi.image_url ORDER BY pi.id ASC) AS images,
         COALESCE(ROUND(AVG(pc.percentage)), 0) AS overallChecklistPercentage,
-        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = p.id AND er.target_type = 'product' AND er.status = 'pending') as has_pending_edit
+        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = p.id AND er.target_type = 'product' AND er.status = 'pending') as has_pending_edit,
+        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = i.id AND er.target_type = 'inquiry' AND er.status = 'pending') as inquiry_has_pending_edit
       FROM
         products p
       LEFT JOIN
@@ -51,7 +54,7 @@ export async function GET(request) {
 
     query += `
       GROUP BY
-        p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.created_at, p.status, p.validation_status, p.validation_notes, p.type, i.product_name, i.product_description
+        p.id, p.name, p.inquiry_code, p.category, p.description, p.start_date, p.deadline, p.created_at, p.status, p.validation_status, p.validation_notes, p.type, i.id, i.product_name, i.product_description
       ORDER BY p.id DESC
     `;
 
@@ -72,6 +75,8 @@ export async function GET(request) {
         ...row,
         images: row.images ? row.images.split(',') : [],
         custom_attributes: Array.isArray(customAttributes) ? customAttributes : [],
+        has_pending_edit: !!row.has_pending_edit,
+        inquiry_has_pending_edit: !!row.inquiry_has_pending_edit,
       };
     });
 
@@ -98,11 +103,34 @@ export async function POST(req) {
       assignee_ids, order_quantity
     } = await req.json();
 
-    if (!name || !inquiry_code) {
-      return NextResponse.json({ message: 'Name and Inquiry Code are required' }, { status: 400 });
+    if (!name || !inquiry_code || !order_quantity || parseInt(order_quantity) < 1) {
+      return NextResponse.json({ message: 'Name, Inquiry Code, and a valid Order Quantity (min 1) are required' }, { status: 400 });
+    }
+
+    // Date Validation
+    if (startDate && deadline && new Date(deadline) < new Date(startDate)) {
+      return NextResponse.json({ message: 'Tanggal Deadline tidak boleh sebelum Tanggal Mulai.' }, { status: 400 });
     }
 
     connection = await createConnection();
+
+    // Prevent Duplicates (check if same inquiry_code recently added to products)
+    const [existingProd] = await connection.execute(
+      "SELECT id FROM products WHERE inquiry_code = ?",
+      [inquiry_code]
+    );
+    if (existingProd.length > 0) {
+      return NextResponse.json({ message: 'Produk dengan kode inquiry ini sudah terdaftar. Gunakan menu edit untuk merubahnya.' }, { status: 409 });
+    }
+
+    if (type === 'Custom') {
+      const [inquiryRows] = await connection.execute('SELECT validation_status FROM inquiries WHERE inquiry_code = ?', [inquiry_code]);
+      if (inquiryRows.length > 0 && inquiryRows[0].validation_status !== 'approved') {
+        connection.release();
+        return NextResponse.json({ message: 'Cannot create Custom Product. Inquiry is not approved yet.' }, { status: 403 });
+      }
+    }
+
     await connection.beginTransaction();
 
     let valStatus = token.role === 'direktur' ? 'approved' : 'pending';

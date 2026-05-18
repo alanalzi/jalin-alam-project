@@ -12,16 +12,18 @@ const dbConfig = {
 };
 
 // Singleton pattern to prevent multiple pools during HMR
+const globalForDb = globalThis;
+
 let pool;
 
 if (process.env.NODE_ENV === 'production') {
   pool = mysql.createPool(dbConfig);
 } else {
-  if (!global.dbPool) {
+  if (!globalForDb.dbPool) {
     console.log('Creating new Global DB Pool...');
-    global.dbPool = mysql.createPool(dbConfig);
+    globalForDb.dbPool = mysql.createPool(dbConfig);
   }
-  pool = global.dbPool;
+  pool = globalForDb.dbPool;
 }
 
 export default async function createConnection() {

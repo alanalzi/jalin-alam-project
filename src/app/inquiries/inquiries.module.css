@@ -229,6 +229,8 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
     padding: 10px 0;
+    overflow-y: auto;
+    max-height: calc(100vh - 250px);
 }
 
 .inquiryCard {
@@ -761,6 +763,14 @@
 
 .calendarContainer :global(.fc .has-inquiry-rejected) {
     background-color: #fee2e2 !important; /* light red */
+}
+
+.calendarContainer :global(.fc .is-red-day) {
+    background-color: #fff1f2 !important; /* very light red for red days */
+}
+
+.calendarContainer :global(.fc .is-red-day .fc-daygrid-day-number) {
+    color: #e11d48 !important; /* red text for date number on red days */
 }
 
 .calendarContainer :global(.fc .fc-multimonth-daygrid-plugin) {

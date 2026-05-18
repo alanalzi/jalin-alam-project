@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import Link from "next/link"
 
 export default function RegisterPage() {
@@ -20,7 +22,7 @@ export default function RegisterPage() {
   const handleSubmit = (e) => {
     e.preventDefault()
     console.log("Data registrasi:", form)
-    alert("Registrasi berhasil! Silakan login.")
+    toast.success("Registrasi berhasil! Silakan login.")
   }
 
   return (

@@ -13,7 +13,7 @@ export async function GET(req) {
     connection = await createConnection();
 
     const [inquiries] = await connection.execute(
-      `SELECT id, inquiry_code, customer_name, product_name, request_date, created_at FROM inquiries WHERE validation_status = 'pending' ORDER BY created_at DESC`
+      `SELECT id, inquiry_code, customer_name, product_name, request_date, created_at, validation_status FROM inquiries WHERE validation_status IN ('pending', 'pending_delete') ORDER BY created_at DESC`
     );
 
     const [inquiriesHistory] = await connection.execute(
@@ -28,11 +28,12 @@ export async function GET(req) {
         p.category, 
         p.type,
         p.created_at,
+        p.validation_status,
         GROUP_CONCAT(u.name SEPARATOR ', ') as assignee_names
       FROM products p
       LEFT JOIN product_assignees pa ON p.id = pa.product_id
       LEFT JOIN users u ON pa.user_id = u.id
-      WHERE p.validation_status = 'pending'
+      WHERE p.validation_status IN ('pending', 'pending_delete')
       GROUP BY p.id
       ORDER BY p.created_at DESC`
     );
@@ -85,20 +86,67 @@ export async function PUT(req) {
     connection = await createConnection();
 
     if (type === 'inquiry') {
-      await connection.execute(`UPDATE inquiries SET validation_status = ?, validation_notes = ? WHERE id = ?`, [status, notes, id]);
-      
-      // If inquiry is rejected, also reject any associated products
-      if (status === 'rejected') {
-        const [inqRows] = await connection.execute(`SELECT inquiry_code FROM inquiries WHERE id = ?`, [id]);
-        if (inqRows.length > 0) {
-          await connection.execute(
-            `UPDATE products SET validation_status = 'rejected', validation_notes = ? WHERE inquiry_code = ?`, 
-            [`Inquiry ditolak: ${notes}`, inqRows[0].inquiry_code]
-          );
+      const [currentStatusRows] = await connection.execute('SELECT validation_status, inquiry_code FROM inquiries WHERE id = ?', [id]);
+      if (currentStatusRows.length === 0) {
+         return NextResponse.json({ message: 'Inquiry not found' }, { status: 404 });
+      }
+      const currentStatus = currentStatusRows[0].validation_status;
+      const inquiryCode = currentStatusRows[0].inquiry_code;
+
+      if (currentStatus === 'pending_delete') {
+         if (status === 'approved') {
+            // Perform actual deletion
+            await connection.execute('DELETE FROM inquiry_images WHERE inquiry_id = ?', [id]);
+            await connection.execute('DELETE FROM inquiry_assignees WHERE inquiry_id = ?', [id]);
+            await connection.execute('DELETE FROM inquiries WHERE id = ?', [id]);
+            
+            // Delete associated product
+            const [prodRows] = await connection.execute('SELECT id FROM products WHERE inquiry_code = ?', [inquiryCode]);
+            for (const prod of prodRows) {
+              const prodId = prod.id;
+              await connection.execute('DELETE FROM product_images WHERE product_id = ?', [prodId]);
+              await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [prodId]);
+              await connection.execute('DELETE FROM product_materials WHERE product_id = ?', [prodId]);
+              await connection.execute('DELETE FROM product_assignees WHERE product_id = ?', [prodId]);
+              await connection.execute('DELETE FROM products WHERE id = ?', [prodId]);
+            }
+         } else if (status === 'rejected') {
+            await connection.execute(`UPDATE inquiries SET validation_status = 'approved', validation_notes = ? WHERE id = ?`, [`Hapus Ditolak: ${notes || ''}`, id]);
+            await connection.execute(`UPDATE products SET validation_status = 'approved', validation_notes = ? WHERE inquiry_code = ?`, [`Hapus Ditolak: ${notes || ''}`, inquiryCode]);
+         }
+      } else {
+        await connection.execute(`UPDATE inquiries SET validation_status = ?, validation_notes = ? WHERE id = ?`, [status, notes, id]);
+        
+        // If inquiry is rejected, also reject any associated products
+        if (status === 'rejected') {
+          if (inquiryCode) {
+            await connection.execute(
+              `UPDATE products SET validation_status = 'rejected', validation_notes = ? WHERE inquiry_code = ?`, 
+              [`Inquiry ditolak: ${notes || ''}`, inquiryCode]
+            );
+          }
         }
       }
     } else if (type === 'product') {
-      await connection.execute(`UPDATE products SET validation_status = ?, validation_notes = ? WHERE id = ?`, [status, notes, id]);
+      const [currentStatusRows] = await connection.execute('SELECT validation_status FROM products WHERE id = ?', [id]);
+      if (currentStatusRows.length === 0) {
+         return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+      }
+      const currentStatus = currentStatusRows[0].validation_status;
+
+      if (currentStatus === 'pending_delete') {
+         if (status === 'approved') {
+            await connection.execute('DELETE FROM product_images WHERE product_id = ?', [id]);
+            await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [id]);
+            await connection.execute('DELETE FROM product_materials WHERE product_id = ?', [id]);
+            await connection.execute('DELETE FROM product_assignees WHERE product_id = ?', [id]);
+            await connection.execute('DELETE FROM products WHERE id = ?', [id]);
+         } else if (status === 'rejected') {
+            await connection.execute(`UPDATE products SET validation_status = 'approved', validation_notes = ? WHERE id = ?`, [`Hapus Ditolak: ${notes || ''}`, id]);
+         }
+      } else {
+        await connection.execute(`UPDATE products SET validation_status = ?, validation_notes = ? WHERE id = ?`, [status, notes, id]);
+      }
     } else {
       return NextResponse.json({ message: 'Invalid type' }, { status: 400 });
     }

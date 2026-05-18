@@ -156,6 +156,68 @@
   justify-content: flex-start;
 }
 
+.mainDashboardGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.chartSection {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chartCard {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #edf2f7;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: sticky;
+  top: 20px;
+}
+
+.chartTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 20px;
+  align-self: flex-start;
+}
+
+.tabBtn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.activeTab {
+  color: #3182ce;
+  border-bottom: 2px solid #3182ce;
+}
+
+.sortSelect {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #4a5568;
+  background: white;
+  outline: none;
+}
+
 .header {
   margin-bottom: 0; /* Removed margin */
   display: flex;
@@ -353,7 +415,7 @@
 }
 
 @media (max-width: 1200px) {
-  .topContentRow {
+  .topContentRow, .mainDashboardGrid {
     grid-template-columns: 1fr;
   }
   .summaryGrid {
@@ -388,10 +450,14 @@
   border: 1px solid #edf2f7;
 }
 
-.statCard:hover {
+.clickableCard {
+  cursor: pointer;
+}
+
+.clickableCard:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  border-color: #e2e8f0;
+  border-color: #3182ce;
 }
 
 .iconWrapper {
@@ -508,11 +574,11 @@
   border-collapse: collapse;
 }
 
-.dashboardTable th,
-.dashboardTable td {
-  padding: 14px 20px; /* More compact table padding */
+.dashboardTable th, .dashboardTable td {
+  padding: 16px 12px;
   text-align: left;
   border-bottom: 1px solid #edf2f7;
+  vertical-align: middle;
 }
 
 .dashboardTable th {
@@ -522,6 +588,10 @@
   color: #718096;
   font-weight: 600;
   background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: inset 0 -1px 0 #edf2f7;
 }
 
 .dashboardTable tr:last-child td {
@@ -600,11 +670,10 @@
 }
 
 .progressBar {
-  height: 8px;
-  background: #edf2f7;
-  border-radius: 4px;
-  flex: 1;
-  position: relative;
+  width: 100%;
+  height: 10px;
+  background-color: #edf2f7;
+  border-radius: 5px;
   overflow: hidden;
 }
 
@@ -627,15 +696,11 @@
 }
 
 /* Specific width handled by inline style, but base color and animation here */
-.progressBar {
-  background: #edf2f7;
-}
 
 .progressText {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #4a5568;
-  min-width: 35px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2d3748;
 }
 
 .progressLabelGroup {
@@ -672,4 +737,132 @@
   transform: translateX(2px);
 }
 
+/* Drilldown Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
+.modalContent {
+  background: white;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modalHeader {
+  padding: 24px;
+  border-bottom: 1px solid #edf2f7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalHeader h3 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin: 0;
+}
+
+.closeBtn {
+  background: #f7fafc;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #718096;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
+.modalList {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.drilldownTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.drilldownTable th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #718096;
+  padding: 12px;
+  border-bottom: 2px solid #edf2f7;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+}
+
+.drilldownTable td {
+  padding: 16px 0;
+  border-bottom: 1px solid #f7fafc;
+  vertical-align: middle;
+}
+
+.categoryBadge {
+  background: #f0f7ff;
+  color: #3182ce;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.viewBtn {
+  color: #3182ce;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.loader, .emptyDrilldown {
+  padding: 40px;
+  text-align: center;
+  color: #718096;
+  font-weight: 500;
+}
+
+.ongoingIcon { background: #ebf8ff; color: #3182ce; }
+.lateIcon { background: #fff5f5; color: #e53e3e; }
+.nearIcon { background: #fffaf0; color: #dd6b20; }
+.successIcon { background: #f0fff4; color: #38a169; }
+.pendingIcon { background: #fffaf0; color: #dd6b20; }
+
+.statTrend {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 4px;
+}

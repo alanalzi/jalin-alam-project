@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import { FaArrowLeft, FaPlus, FaTrash, FaEdit, FaSave, FaTimes, FaCheckCircle, FaListUl } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,7 +76,7 @@ export default function ChecklistTemplatesPage() {
                 fetchTemplates();
                 closeModal();
             } else {
-                alert("Failed to save template");
+                toast.error("Failed to save template");
             }
         } catch (error) {
             console.error(error);

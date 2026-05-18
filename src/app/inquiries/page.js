@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
+import toast from "react-hot-toast";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import {
   FaCalendarAlt, FaShoppingCart, FaList, 
   FaSortAmountDown, FaSortAmountUp, FaCheck, FaTimes, FaCommentAlt 
 } from "react-icons/fa";
+import { calculateWorkingDays, fetchHolidaysFromAPI } from "@/app/lib/dateUtils";
 
 function formatDateForInput(dateString) {
   if (!dateString) return '';
@@ -69,6 +71,7 @@ export default function InquiryManagementPage() {
   const [usersList, setUsersList] = useState([]);
   const [hasPendingEdit, setHasPendingEdit] = useState(false);
   const [originalData, setOriginalData] = useState(null);
+  const [holidays, setHolidays] = useState([]);
 
   const [formData, setFormData] = useState({ 
     id: null, 
@@ -112,7 +115,7 @@ export default function InquiryManagementPage() {
     } catch (error) {
       console.error("Error navigating to product:", error);
       if (mounted.current) {
-        alert(`Error: ${String(error.message)}`);
+        toast.error(`Error: ${String(error.message)}`);
       }
     }
   };
@@ -188,22 +191,32 @@ export default function InquiryManagementPage() {
     const todayStr = formatDateForInput(new Date());
     
     if (!formData.id && formData.request_date < todayStr) {
-      alert("Start date (Request Date) tidak boleh hari sebelum hari ini.");
+      toast.error("Start date (Request Date) tidak boleh hari sebelum hari ini.");
       return;
     }
     
     if (formData.request_date && formData.image_deadline) {
       if (formData.image_deadline < formData.request_date) {
-        alert("Deadline (Target Deadline) tidak boleh sebelum Start Date.");
+        toast.error("Deadline (Target Deadline) tidak boleh sebelum Start Date.");
         return;
       }
+    }
+
+    if (!formData.assignee_ids || formData.assignee_ids.length === 0) {
+      toast.error("Harap pilih setidaknya satu assignee (PIC).");
+      return;
+    }
+
+    if (selectedFiles.length === 0 && (!formData.images || formData.images.length === 0)) {
+      toast.error("Harap unggah setidaknya satu gambar inquiry.");
+      return;
     }
 
     const url = formData.id ? `/api/inquiries/${formData.id}` : '/api/inquiries';
     const method = formData.id ? 'PUT' : 'POST';
     const payload = { 
       ...formData,
-      order_quantity: Math.max(0, parseInt(formData.order_quantity) || 0)
+      order_quantity: Math.max(1, parseInt(formData.order_quantity) || 1)
     };
 
     if (selectedFiles.length > 0) {
@@ -232,13 +245,42 @@ export default function InquiryManagementPage() {
       } catch (uploadError) {
         console.error("Error uploading images:", uploadError);
         if (mounted.current) {
-          alert(`Error uploading images: ${String(uploadError.message)}`);
+          toast.error(`Error uploading images: ${String(uploadError.message)}`);
         }
         return;
       }
     }
 
     if (userRole?.toLowerCase() === 'admin' && formData.id) {
+      let hasChanges = false;
+      const fields = ['customer_name', 'customer_email', 'customer_phone', 'customer_address', 'product_name', 'product_description', 'customer_request', 'request_date', 'image_deadline', 'order_quantity'];
+      for (const field of fields) {
+        let oldVal = originalData[field];
+        if (field === 'request_date' || field === 'image_deadline') {
+          oldVal = formatDateForInput(oldVal);
+        }
+        if (String(oldVal || '') !== String(payload[field] || '')) {
+          hasChanges = true;
+          break;
+        }
+      }
+      
+      if (!hasChanges) {
+        const oldAssignees = (originalData.assignees || []).map(a => String(a.id)).sort().join(',');
+        const newAssignees = [...(payload.assignee_ids || [])].sort().join(',');
+        if (oldAssignees !== newAssignees) hasChanges = true;
+      }
+      
+      if (!hasChanges && selectedFiles.length > 0) {
+        hasChanges = true;
+      }
+
+      if (!hasChanges) {
+        toast("Tidak ada perubahan yang dilakukan.", { icon: 'ℹ️' });
+        closeModal();
+        return;
+      }
+
       try {
         const res = await fetch('/api/edit-requests', {
           method: 'POST',
@@ -252,7 +294,7 @@ export default function InquiryManagementPage() {
         });
 
         if (res.ok) {
-          alert("Perubahan Inquiry telah diajukan ke Direktur untuk divalidasi.");
+          toast.success("Perubahan Inquiry telah diajukan ke Direktur untuk divalidasi.");
           closeModal();
           return;
         } else {
@@ -260,7 +302,7 @@ export default function InquiryManagementPage() {
           throw new Error(err.error || "Gagal mengajukan perubahan.");
         }
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message);
         return;
       }
     }
@@ -290,13 +332,13 @@ export default function InquiryManagementPage() {
         } catch (jsonErr) { }
         console.error(errorMsg);
         if (mounted.current) {
-          alert(errorMsg);
+          toast.error(errorMsg);
         }
       }
     } catch (error) {
       console.error("Error submitting inquiry:", error);
       if (mounted.current) {
-        alert(String(error.message));
+        toast.error(String(error.message));
       }
     }
   };
@@ -342,7 +384,7 @@ export default function InquiryManagementPage() {
     } catch (error) {
       console.error("Error in handleEdit:", error);
       if (mounted.current) {
-        alert(String(error.message));
+        toast.error(String(error.message));
       }
     }
   };
@@ -352,6 +394,10 @@ export default function InquiryManagementPage() {
     try {
       const res = await fetch(`/api/inquiries/${inquiryId}`, { method: 'DELETE' });
       if (res.ok) {
+        const data = await res.json();
+        if (data.message && mounted.current) {
+          toast.success(data.message);
+        }
         if (mounted.current) {
           const [inqRes, editRes] = await Promise.all([
             fetch('/api/inquiries'),
@@ -371,7 +417,7 @@ export default function InquiryManagementPage() {
     } catch (err) {
       console.error("Error in handleDelete:", err);
       if (mounted.current) {
-        alert(`Error: ${String(err.message)}`);
+        toast.error(`Error: ${String(err.message)}`);
       }
     }
   };
@@ -381,10 +427,12 @@ export default function InquiryManagementPage() {
       const productStatusLower = inquiry.product_status?.toLowerCase() || '';
       const isComplete = productStatusLower === 'done' || productStatusLower === 'selesai' || productStatusLower === 'completed';
       const isLate = productStatusLower === 'late';
+      const isLateDone = productStatusLower === 'late done';
       
       let backgroundColor = '#3182ce';
       if (isComplete) backgroundColor = '#22c55e';
       else if (isLate) backgroundColor = '#ef4444';
+      else if (isLateDone) backgroundColor = '#f97316';
       else if (inquiry.product_id) {
         if (inquiry.product_validation_status === 'pending') backgroundColor = '#eab308';
         else if (inquiry.product_validation_status === 'rejected') backgroundColor = '#ef4444';
@@ -447,15 +495,17 @@ export default function InquiryManagementPage() {
     
     const fetchData = async () => {
       try {
-        const [inqRes, editRes, usersRes] = await Promise.all([
+        const [inqRes, editRes, usersRes, holidayDates] = await Promise.all([
           fetch('/api/inquiries'),
           fetch('/api/edit-requests?status=pending&targetType=inquiry'),
-          fetch('/api/users/basic')
+          fetch('/api/users/basic'),
+          fetchHolidaysFromAPI()
         ]);
         
         if (inqRes.ok && mounted.current) setInquiries(await inqRes.json());
         if (editRes.ok && mounted.current) setPendingEdits(await editRes.json());
         if (usersRes.ok && mounted.current) setUsersList(await usersRes.json());
+        if (mounted.current) setHolidays(holidayDates);
       } catch (err) {
         console.error("Failed to fetch data", err);
       }
@@ -575,7 +625,7 @@ export default function InquiryManagementPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {pendingEdits.some(e => e.target_id === inquiry.id) && (
+                        {!!(pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit) && (
                           <span style={{
                             fontSize: '0.6rem', 
                             backgroundColor: '#eff6ff', 
@@ -587,18 +637,24 @@ export default function InquiryManagementPage() {
                             border: '1px solid #bfdbfe'
                           }}>⚙️ EDIT PENDING</span>
                         )}
-                        {inquiry.validation_status === 'pending' && <span style={{fontSize: '0.7rem', backgroundColor: '#fef9c3', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fef08a'}}>⏳ Pending</span>}
+                        {inquiry.validation_status === 'pending' && <span style={{fontSize: '0.7rem', backgroundColor: '#fef9c3', color: '#854d0e', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fef08a', whiteSpace: 'nowrap'}}>⏳ Pending</span>}
                         {inquiry.validation_status === 'approved' && !inquiry.product_id && (
-                          <span style={{fontSize: '0.7rem', backgroundColor: '#f0fdfa', color: '#0d9488', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #ccfbf1'}}>
+                          <span style={{fontSize: '0.7rem', backgroundColor: '#f0fdfa', color: '#0d9488', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #ccfbf1', whiteSpace: 'nowrap'}}>
                             ✅ Approved (Belum Ada Produk)
                           </span>
                         )}
                         {inquiry.validation_status === 'approved' && inquiry.product_id && (
-                          <span style={{fontSize: '0.7rem', backgroundColor: '#f0fdf4', color: '#166534', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #bbf7d0'}}>
+                          <span style={{fontSize: '0.7rem', backgroundColor: '#f0fdf4', color: '#166534', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #bbf7d0', whiteSpace: 'nowrap'}}>
                             ✅ Approved (Sudah Ada Produk)
                           </span>
                         )}
-                        {inquiry.validation_status === 'rejected' && <span style={{fontSize: '0.7rem', backgroundColor: '#fef2f2', color: '#991b1b', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fee2e2'}}>❌ Rejected</span>}
+                        {inquiry.validation_status === 'rejected' && <span style={{fontSize: '0.7rem', backgroundColor: '#fef2f2', color: '#991b1b', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fee2e2', whiteSpace: 'nowrap'}}>❌ Rejected</span>}
+                        {inquiry.validation_status === 'pending_delete' && <span style={{fontSize: '0.7rem', backgroundColor: '#fee2e2', color: '#dc2626', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fecaca', whiteSpace: 'nowrap'}}>🗑️ Menunggu Hapus</span>}
+                        {inquiry.product_status?.toLowerCase() === 'cancelled' && (
+                          <span style={{fontSize: '0.7rem', backgroundColor: '#fef2f2', color: '#991b1b', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', width: 'fit-content', border: '1px solid #fee2e2', whiteSpace: 'nowrap'}}>
+                            🚫 Cancelled
+                          </span>
+                        )}
                         
                         {inquiry.validation_notes && (
                           <div style={{ 
@@ -623,8 +679,24 @@ export default function InquiryManagementPage() {
                     <td className={styles.actionsCell}>
                       {canAssign && (
                         <>
-                          <button className={styles.iconButton} onClick={(e) => { e.stopPropagation(); handleEdit(inquiry); }} title="Edit"><FaEdit /></button>
-                          <button className={styles.iconButtonDelete} onClick={(e) => { e.stopPropagation(); handleDelete(inquiry.id); }} title="Delete"><FaTrash /></button>
+                          <button 
+                            className={styles.iconButton} 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(inquiry); }} 
+                            title="Edit"
+                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_status?.toLowerCase() === 'cancelled'}
+                            style={(inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_status?.toLowerCase() === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                          >
+                            <FaEdit />
+                          </button>
+                          <button 
+                            className={styles.iconButtonDelete} 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(inquiry.id); }} 
+                            title="Delete"
+                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit}
+                            style={(inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                          >
+                            <FaTrash />
+                          </button>
                         </>
                       )}
                     </td>
@@ -646,7 +718,7 @@ export default function InquiryManagementPage() {
             key={viewMode}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, multiMonthPlugin]}
             initialView="dayGridMonth"
-            navLinks={true}
+            navLinks={false}
             views={{
               multiMonthYear: {
                 buttonText: 'Tahun',
@@ -688,10 +760,15 @@ export default function InquiryManagementPage() {
             dayCellClassNames={(arg) => {
               const d = formatDateForInput(arg.date);
               const stat = inquiryDayStats[d];
-              if (stat) {
-                return `has-inquiry-${stat.status}`;
-              }
-              return '';
+              const day = arg.date.getDay();
+              const isWeekend = day === 0 || day === 6;
+              const isHoliday = holidays.includes(d);
+              
+              let classes = [];
+              if (isWeekend || isHoliday) classes.push('is-red-day');
+              if (stat) classes.push(`has-inquiry-${stat.status}`);
+              
+              return classes.join(' ');
             }}
             headerToolbar={{
               left: 'prev,next today',
@@ -749,21 +826,22 @@ export default function InquiryManagementPage() {
                           <div className={styles.customerName}>
                             {inquiry.customer_name}
                             {inquiry.validation_status === "approved" && !inquiry.product_id && (
-                              <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#f0fdfa", color: "#0d9488", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #ccfbf1"}}>
+                              <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#f0fdfa", color: "#0d9488", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #ccfbf1", whiteSpace: "nowrap"}}>
                                 ✅ Approved (Belum Ada Produk)
                               </span>
                             )}
                             {inquiry.validation_status === "approved" && inquiry.product_id && (
-                              <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#f0fdf4", color: "#166534", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #bbf7d0"}}>
+                              <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#f0fdf4", color: "#166534", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #bbf7d0", whiteSpace: "nowrap"}}>
                                 ✅ Approved (Sudah Ada Produk)
                               </span>
                             )}
-                            {inquiry.validation_status === "pending" && <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#fef9c3", color: "#854d0e", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #fef08a"}}>⏳ Pending</span>}
-                            {inquiry.validation_status === "rejected" && <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#fef2f2", color: "#991b1b", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #fee2e2"}}>❌ Rejected</span>}
+                            {inquiry.validation_status === "pending" && <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#fef9c3", color: "#854d0e", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #fef08a", whiteSpace: "nowrap"}}>⏳ Pending</span>}
+                            {inquiry.validation_status === "rejected" && <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#fef2f2", color: "#991b1b", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #fee2e2", whiteSpace: "nowrap"}}>❌ Rejected</span>}
+                            {inquiry.validation_status === "pending_delete" && <span style={{marginLeft: "8px", fontSize: "0.65rem", backgroundColor: "#fee2e2", color: "#dc2626", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", border: "1px solid #fecaca", whiteSpace: "nowrap"}}>🗑️ Menunggu Hapus</span>}
                           </div>
                           <div className={styles.inquiryCode} onClick={(e) => { e.stopPropagation(); handleInquiryCodeClick(inquiry); }}>{inquiry.inquiry_code}</div>
                         </div>
-                        {pendingEdits.some(e => e.target_id === inquiry.id) && (
+                        {!!pendingEdits.some(e => e.target_id === inquiry.id) && (
                           <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.6rem", backgroundColor: "#eff6ff", color: "#2563eb", padding: "3px 10px", borderRadius: "20px", fontWeight: "800", border: "1px solid #bfdbfe", textTransform: "uppercase" }}>⚙️ Edit Request Pending</div>
                         )}
                       </div>
@@ -801,16 +879,41 @@ export default function InquiryManagementPage() {
                           <span className={styles.tagDate}><FaCalendarAlt size={10} /> {formatShortDate(inquiry.request_date)}</span>
                           {Number(inquiry.order_quantity) > 0 && <span className={styles.tagQuantity}><FaShoppingCart size={10} /> {inquiry.order_quantity}</span>}
                           {inquiry.product_id ? (
-                            <span style={{ fontSize: "0.65rem", fontWeight: "bold", padding: "2px 8px", borderRadius: "4px", backgroundColor: inquiry.product_validation_status === "pending" ? "#fef08a" : inquiry.product_validation_status === "rejected" ? "#fee2e2" : (inquiry.product_status === "done" ? "#22c55e" : (inquiry.product_status === "late" ? "#ef4444" : "#dcfce7")), color: inquiry.product_validation_status === "pending" ? "#854d0e" : inquiry.product_validation_status === "rejected" ? "#991b1b" : "#166534", border: "1px solid currentColor", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                              {inquiry.product_validation_status === "pending" ? "⏳ Menunggu Approval Produk" : inquiry.product_validation_status === "rejected" ? "❌ Produk Ditolak" : (inquiry.product_status === "done" ? "✅ Complete" : (inquiry.product_status === "late" ? "⚠️ Late" : (inquiry.product_status ? "⏳ " + inquiry.product_status : "✔ Linked")))}
+                            <span style={{ 
+                              fontSize: "0.65rem", 
+                              fontWeight: "bold", 
+                              padding: "2px 8px", 
+                              borderRadius: "4px", 
+                              backgroundColor: inquiry.product_status?.toLowerCase() === 'cancelled' ? '#fee2e2' : inquiry.product_validation_status === "pending" ? "#fef08a" : inquiry.product_validation_status === "rejected" ? "#fee2e2" : (inquiry.product_status === "done" ? "#22c55e" : (inquiry.product_status === "late" ? "#ef4444" : (inquiry.product_status === "Late Done" ? "#ffedd5" : "#dcfce7"))), 
+                              color: inquiry.product_status?.toLowerCase() === 'cancelled' ? '#991b1b' : inquiry.product_validation_status === "pending" ? "#854d0e" : inquiry.product_validation_status === "rejected" ? "#991b1b" : (inquiry.product_status === "Late Done" ? "#c2410c" : "#166534"), 
+                              border: inquiry.product_status === "Late Done" ? "1px solid #fdba74" : "1px solid currentColor", 
+                              display: "inline-flex", 
+                              alignItems: "center", 
+                              gap: "4px" 
+                            }}>
+                              {inquiry.product_status?.toLowerCase() === 'cancelled' ? "🚫 Cancelled" : inquiry.product_validation_status === "pending" ? "⏳ Menunggu Approval Produk" : inquiry.product_validation_status === "rejected" ? "❌ Produk Ditolak" : (inquiry.product_status === "done" ? "✅ Complete" : (inquiry.product_status === "late" ? "⚠️ Late" : (inquiry.product_status === "Late Done" ? "Late Done" : (inquiry.product_status ? "⏳ " + inquiry.product_status : "✔ Linked"))))}
                             </span>
                           ) : <span style={{ fontSize: "0.65rem", fontWeight: "bold", padding: "2px 5px", borderRadius: "4px", backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" }}>No Product</span>}
                         </div>
                       </div>
                       {canAssign && (
                         <div className={styles.cardActions}>
-                          <button className={styles.iconButton} onClick={(e) => { e.stopPropagation(); handleEdit(inquiry); }}><FaEdit /></button>
-                          <button className={styles.iconButtonDelete} onClick={(e) => { e.stopPropagation(); handleDelete(inquiry.id); }}><FaTrash /></button>
+                          <button 
+                            className={styles.iconButton} 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(inquiry); }}
+                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_validation_status === 'pending' || inquiry.product_status?.toLowerCase() === 'cancelled'}
+                            style={(inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_validation_status === 'pending' || inquiry.product_status?.toLowerCase() === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                          >
+                            <FaEdit />
+                          </button>
+                          <button 
+                            className={styles.iconButtonDelete} 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(inquiry.id); }}
+                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_validation_status === 'pending' || inquiry.product_status?.toLowerCase() === 'cancelled'}
+                            style={(inquiry.validation_status === 'pending' || inquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === inquiry.id) || inquiry.product_has_pending_edit || inquiry.product_validation_status === 'pending' || inquiry.product_status?.toLowerCase() === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -850,16 +953,18 @@ export default function InquiryManagementPage() {
                   value={formData.inquiry_code}
                   onChange={handleInputChange}
                   placeholder="Leave blank to auto-generate"
+                  disabled={!!formData.id}
+                  style={formData.id ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed' } : {}}
                 />
               </div>
 
-              <div className={styles.formGroup}><label>Customer Name</label><input type="text" name="customer_name" value={formData.customer_name} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Customer Email</label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Customer Phone</label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} required /></div>
-              <div className={styles.formGroup}><label>Customer Address</label><textarea name="customer_address" value={formData.customer_address} onChange={handleInputChange} required></textarea></div>
+              <div className={styles.formGroup}><label>Customer Name <span style={{ color: '#ef4444' }}>*</span></label><input type="text" name="customer_name" value={formData.customer_name} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Customer Email <span style={{ color: '#ef4444' }}>*</span></label><input type="email" name="customer_email" value={formData.customer_email} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Customer Phone <span style={{ color: '#ef4444' }}>*</span></label><input type="text" name="customer_phone" value={formData.customer_phone} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Customer Address <span style={{ color: '#ef4444' }}>*</span></label><textarea name="customer_address" value={formData.customer_address} onChange={handleInputChange} required></textarea></div>
 
               <div className={styles.formGroup}>
-                <label>Inquiry Images</label>
+                <label>Inquiry Images <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   type="file"
                   name="images"
@@ -879,11 +984,11 @@ export default function InquiryManagementPage() {
                 </div>
               </div>
 
-              <div className={styles.formGroup}><label>Product Name</label><input type="text" name="product_name" value={formData.product_name} onChange={handleInputChange} required /></div>
+              <div className={styles.formGroup}><label>Product Name <span style={{ color: '#ef4444' }}>*</span></label><input type="text" name="product_name" value={formData.product_name} onChange={handleInputChange} required /></div>
               <div className={styles.formGroup}><label>Product Description</label><textarea name="product_description" value={formData.product_description} onChange={handleInputChange}></textarea></div>
               <div className={styles.formGroup}><label>Customer Request</label><textarea name="customer_request" value={formData.customer_request} onChange={handleInputChange}></textarea></div>
               <div className={styles.formGroup}>
-                <label>Request Date</label>
+                <label>Request Date <span style={{ color: '#ef4444' }}>*</span></label>
                 <input 
                   type="date" 
                   name="request_date" 
@@ -894,7 +999,7 @@ export default function InquiryManagementPage() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Target Deadline</label>
+                <label>Target Deadline <span style={{ color: '#ef4444' }}>*</span></label>
                 <input 
                   type="date" 
                   name="image_deadline" 
@@ -904,18 +1009,65 @@ export default function InquiryManagementPage() {
                   required 
                 />
               </div>
-              <div className={styles.formGroup}><label>Order Quantity</label><input 
-                            type="number" 
-                            name="order_quantity" 
-                            value={formData.order_quantity || ""} 
-                            onChange={handleInputChange} 
-                            placeholder="0"
-                            required 
-                          /></div>
+              <div className={styles.formGroup}>
+                <label>Order Quantity <span style={{ color: '#ef4444' }}>*</span></label>
+                <input 
+                  type="number" 
+                  name="order_quantity" 
+                  value={formData.order_quantity || ""} 
+                  onChange={handleInputChange} 
+                  placeholder="1"
+                  min="1"
+                  required 
+                />
+              </div>
+              
+              {formData.request_date && formData.image_deadline && (
+                <div style={{ 
+                  marginBottom: '1.5rem', 
+                  padding: '12px 18px', 
+                  backgroundColor: '#f0f9ff', 
+                  borderRadius: '12px', 
+                  border: '1px solid #bae6fd',
+                  borderLeft: '4px solid #0ea5e9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  fontSize: '0.95rem',
+                  color: '#0369a1'
+                }}>
+                  <div style={{ backgroundColor: '#e0f2fe', padding: '10px', borderRadius: '50%', color: '#0ea5e9' }}>
+                    <FaCalendarAlt size={20} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: '700', fontSize: '1rem', color: '#0c4a6e' }}>
+                      {calculateWorkingDays(formData.request_date, formData.image_deadline, holidays)} Hari Kerja
+                    </span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>
+                      Estimasi ini sudah memotong <strong>Sabtu, Minggu</strong>
+                      {(() => {
+                        const s = new Date(formData.request_date);
+                        s.setHours(0,0,0,0);
+                        const e = new Date(formData.image_deadline);
+                        e.setHours(0,0,0,0);
+                        const overlaps = holidays.filter(h => {
+                          const hd = new Date(h);
+                          hd.setHours(0,0,0,0);
+                          const day = hd.getDay();
+                          return hd >= s && hd <= e && day !== 0 && day !== 6;
+                        }).length;
+                        return overlaps > 0 ? (
+                          <> dan <strong>{overlaps} Hari Libur Nasional</strong> yang terdaftar</>
+                        ) : null;
+                      })()}.
+                    </span>
+                  </div>
+                </div>
+              )}
               
               {canAssign && (
                 <div className={styles.formGroup}>
-                  <label>Assignees</label>
+                  <label>Assignees <span style={{ color: '#ef4444' }}>*</span></label>
                   <div className={styles.assigneeChecklistContainer}>
                     {usersList.map((usr) => {
                       const isSelected = formData.assignee_ids && formData.assignee_ids.includes(usr.id.toString());
@@ -937,7 +1089,14 @@ export default function InquiryManagementPage() {
 
               <div className={styles.modalActions}>
                 <button type="button" onClick={closeModal} className={styles.cancelButton}>Cancel</button>
-                <button type="submit" className={styles.saveButton}>Save</button>
+                <button 
+                  type="submit" 
+                  className={styles.saveButton}
+                  disabled={hasPendingEdit || (formData.id && inquiries.find(i => i.id === formData.id)?.validation_status === 'pending')}
+                  style={(hasPendingEdit || (formData.id && inquiries.find(i => i.id === formData.id)?.validation_status === 'pending')) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                >
+                  Save
+                </button>
               </div>
             </form>
           </div>
@@ -1028,8 +1187,8 @@ export default function InquiryManagementPage() {
                         fontWeight: 'bold', 
                         padding: '2px 8px', 
                         borderRadius: '4px', 
-                        backgroundColor: (selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') ? '#22c55e' : selectedInquiry.product_status?.toLowerCase() === 'late' ? '#ef4444' : '#dcfce7', 
-                        color: (selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') || selectedInquiry.product_status?.toLowerCase() === 'late' ? 'white' : '#166534', 
+                        backgroundColor: (selectedInquiry.product_status?.toLowerCase() === 'cancelled') ? '#fee2e2' : (selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') ? '#22c55e' : selectedInquiry.product_status?.toLowerCase() === 'late' ? '#ef4444' : '#dcfce7', 
+                        color: (selectedInquiry.product_status?.toLowerCase() === 'cancelled') ? '#991b1b' : (selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') || selectedInquiry.product_status?.toLowerCase() === 'late' ? 'white' : '#166534', 
                         border: '1px solid currentColor', 
                         cursor: 'pointer',
                         display: 'inline-flex',
@@ -1037,7 +1196,7 @@ export default function InquiryManagementPage() {
                         gap: '4px'
                       }}
                     >
-                      {(selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') ? '✅ Complete' : selectedInquiry.product_status?.toLowerCase() === 'late' ? '⚠️ Late' : selectedInquiry.product_status ? `⏳ ${selectedInquiry.product_status}` : '✔ Linked'}
+                      {selectedInquiry.product_status?.toLowerCase() === 'cancelled' ? '🚫 Cancelled' : (selectedInquiry.product_status?.toLowerCase() === 'done' || selectedInquiry.product_status?.toLowerCase() === 'selesai' || selectedInquiry.product_status?.toLowerCase() === 'completed') ? '✅ Complete' : selectedInquiry.product_status?.toLowerCase() === 'late' ? '⚠️ Late' : selectedInquiry.product_status ? `⏳ ${selectedInquiry.product_status}` : '✔ Linked'}
                     </span>
                   ) : (
                     <span 
@@ -1050,8 +1209,24 @@ export default function InquiryManagementPage() {
                 </div>
                 {canAssign && (
                   <div className={styles.cardActions}>
-                    <button className={styles.iconButton} onClick={() => { setSelectedInquiry(null); handleEdit(selectedInquiry); }} title="Edit"><FaEdit /></button>
-                    <button className={styles.iconButtonDelete} onClick={() => { setSelectedInquiry(null); handleDelete(selectedInquiry.id); }} title="Delete"><FaTrash /></button>
+                    <button 
+                      className={styles.iconButton} 
+                      onClick={() => { setSelectedInquiry(null); handleEdit(selectedInquiry); }} 
+                      title="Edit"
+                      disabled={selectedInquiry.validation_status === 'pending' || selectedInquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === selectedInquiry.id) || selectedInquiry.product_has_pending_edit || selectedInquiry.product_status?.toLowerCase() === 'cancelled'}
+                      style={(selectedInquiry.validation_status === 'pending' || selectedInquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === selectedInquiry.id) || selectedInquiry.product_has_pending_edit || selectedInquiry.product_status?.toLowerCase() === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
+                      <FaEdit />
+                    </button>
+                    <button 
+                      className={styles.iconButtonDelete} 
+                      onClick={() => { setSelectedInquiry(null); handleDelete(selectedInquiry.id); }} 
+                      title="Delete"
+                      disabled={selectedInquiry.validation_status === 'pending' || selectedInquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === selectedInquiry.id) || selectedInquiry.product_has_pending_edit}
+                      style={(selectedInquiry.validation_status === 'pending' || selectedInquiry.validation_status === 'pending_delete' || pendingEdits.some(e => e.target_id === selectedInquiry.id) || selectedInquiry.product_has_pending_edit) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
+                      <FaTrash />
+                    </button>
                   </div>
                 )}
               </div>

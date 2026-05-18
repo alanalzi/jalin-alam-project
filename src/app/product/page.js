@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -64,17 +65,17 @@ export default function ProductDevelopmentPage() {
     requiredMaterials: [],
     images: [],
     type: "New Product",
-    custom_attributes: [],
     checklist: [],
     assignee_ids: [],
   }); 
   const [usersList, setUsersList] = useState([]);
   const [sortOrder, setSortOrder] = useState('deadline-asc');
-  const [viewMode, setViewMode] = useState('active'); // active | rejected
+  const [viewMode, setViewMode] = useState('upcoming'); // upcoming | completed | cancelled | rejected
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState('all'); // all, New Product, Custom
   const [originalData, setOriginalData] = useState(null);
   const [hasPendingEdit, setHasPendingEdit] = useState(false); // NEW: For pending indicator
+  const [isSubmitting, setIsSubmitting] = useState(false); // NEW: To prevent double clicks
   const mounted = useRef(false);
   const { data: session } = useSession();
   const isAdmin = session?.user?.role?.toLowerCase() === 'admin';
@@ -103,7 +104,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error fetching products:", error);
-      alert(`Error fetching products: ${String(error.message)}`);
+      toast.error(`Gagal mengambil data produk: ${String(error.message)}`);
       setProducts([]);
     }
   }
@@ -124,7 +125,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error fetching raw materials:", error);
-      alert(`Error fetching raw materials: ${String(error.message)}`);
+      toast.error(`Gagal mengambil data supplier: ${String(error.message)}`);
     }
   }
 
@@ -144,7 +145,7 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error fetching inquiries:", error);
-      alert(`Error fetching inquiries: ${String(error.message)}`);
+      toast.error(`Gagal mengambil data inquiry: ${String(error.message)}`);
     }
   }
 
@@ -233,7 +234,7 @@ export default function ProductDevelopmentPage() {
         startDate: type === "New Product" ? currentDate : "",
         deadline: "",
         customer_request: "",
-        order_quantity: "",
+        order_quantity: "1",
         requiredMaterials: [],
         images: [],
         type: type,
@@ -245,7 +246,7 @@ export default function ProductDevelopmentPage() {
       setSelectedFiles([]);
       setImagePreviews([]);
     }
-
+    setHasPendingEdit(false);
     setIsModalOpen(true);
   };
   const closeModal = () => {
@@ -268,6 +269,7 @@ export default function ProductDevelopmentPage() {
     }); setSelectedMaterialId('');
     setSelectedFiles([]);
     setImagePreviews([]);
+    setHasPendingEdit(false);
   };
 
   const handleAssigneeChange = (userId) => {
@@ -323,19 +325,19 @@ export default function ProductDevelopmentPage() {
 
   const handleAddMaterial = () => {
     if (!selectedMaterialId) {
-      alert("Please select a supplier.");
+      toast.error("Silakan pilih supplier terlebih dahulu.");
       return;
     }
 
     const supplierToAdd = rawMaterials.find(m => m.id === parseInt(selectedMaterialId));
     if (!supplierToAdd) {
-      alert("Selected supplier not found.");
+      toast.error("Supplier yang dipilih tidak ditemukan.");
       return;
     }
 
     // Check if supplier is already added to this product
     if (formData.requiredMaterials.some(s => s.supplier_id === supplierToAdd.id)) {
-      alert("This supplier has already been added to this product.");
+      toast.error("Supplier ini sudah ditambahkan ke produk ini.");
       return;
     }
 
@@ -359,28 +361,7 @@ export default function ProductDevelopmentPage() {
     }));
   };
 
-  // Custom Attribute Handlers
-  const handleAddAttribute = () => {
-    setFormData(prev => ({
-      ...prev,
-      custom_attributes: [...(prev.custom_attributes || []), { key: '', value: '' }]
-    }));
-  };
 
-  const handleAttributeChange = (index, field, value) => {
-    setFormData(prev => {
-      const newAttributes = [...(prev.custom_attributes || [])];
-      newAttributes[index] = { ...newAttributes[index], [field]: value };
-      return { ...prev, custom_attributes: newAttributes };
-    });
-  };
-
-  const handleRemoveAttribute = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      custom_attributes: (prev.custom_attributes || []).filter((_, i) => i !== index)
-    }));
-  };
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -402,6 +383,21 @@ export default function ProductDevelopmentPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    if (productType === 'Custom' && formData.inquiry_code) {
+      const selectedInquiry = inquiries.find(inq => inq.inquiry_code === formData.inquiry_code);
+      if (selectedInquiry && selectedInquiry.validation_status !== 'approved') {
+        toast.error("Gagal menyimpan: Inquiry ini belum di-ACC oleh Direktur.");
+        return;
+      }
+      if (selectedInquiry && selectedInquiry.has_pending_edit) {
+        toast.error("Gagal menyimpan: Inquiry ini sedang dalam proses edit oleh Direktur. Harap tunggu validasi selesai.");
+        return;
+      }
+    }
+
     const url = formData.id ? `/api/products/${formData.id}` : '/api/products';
     const method = formData.id ? 'PUT' : 'POST';
     const payload = {
@@ -423,11 +419,17 @@ export default function ProductDevelopmentPage() {
       status: formData.status || 'ongoing',
     }; // payload now includes all fields
 
+    if (payload.order_quantity < 0) {
+      toast.error("Order Quantity tidak boleh kurang dari nol!");
+      return;
+    }
+
     if (payload.startDate && payload.deadline) {
       const start = new Date(payload.startDate);
       const end = new Date(payload.deadline);
       if (end < start) {
-        alert("Deadline tidak boleh sebelum Start Date!");
+        toast.error("Deadline tidak boleh sebelum Start Date!");
+        setIsSubmitting(false);
         return;
       }
     }
@@ -458,7 +460,8 @@ export default function ProductDevelopmentPage() {
         }
       } catch (uploadError) {
         console.error("Error uploading images:", uploadError);
-        alert(`Error uploading images: ${String(uploadError.message)}`);
+        toast.error(`Gagal mengunggah gambar: ${String(uploadError.message)}`);
+        setIsSubmitting(false);
         return; // Stop submission if image upload fails
       }
     }
@@ -467,6 +470,48 @@ export default function ProductDevelopmentPage() {
 
     // Redirect to Edit Requests if Admin is editing existing product
     if (isAdmin && formData.id) {
+      let hasChanges = false;
+      const fields = ['name', 'category', 'description', 'startDate', 'deadline', 'type', 'order_quantity', 'status', 'customer_request'];
+      for (const field of fields) {
+        let oldVal = originalData[field];
+        if (field === 'startDate' || field === 'deadline') {
+          oldVal = formatDateForInputValue(oldVal);
+        }
+        if (String(oldVal || '') !== String(payload[field] || '')) {
+          hasChanges = true;
+          break;
+        }
+      }
+      
+      if (!hasChanges) {
+        const oldAssignees = (originalData.assignees || []).map(a => String(a.id)).sort().join(',');
+        const newAssignees = [...(payload.assignee_ids || [])].sort().join(',');
+        if (oldAssignees !== newAssignees) hasChanges = true;
+      }
+      
+      if (!hasChanges) {
+        const oldTasks = (originalData.checklist || []).map(t => (t.task_name || t.task).trim()).sort().join(',');
+        const newTasks = (payload.checklist || []).map(t => (t.task_name || t.task).trim()).sort().join(',');
+        if (oldTasks !== newTasks) hasChanges = true;
+      }
+      
+      if (!hasChanges) {
+        const oldMats = (originalData.requiredMaterials || []).map(m => String(m.material_id || m.supplier_id)).sort().join(',');
+        const newMats = (payload.requiredMaterials || []).map(m => String(m.supplier_id)).sort().join(',');
+        if (oldMats !== newMats) hasChanges = true;
+      }
+      
+      if (!hasChanges && selectedFiles.length > 0) {
+        hasChanges = true;
+      }
+
+      if (!hasChanges) {
+        toast("Tidak ada perubahan yang dilakukan.", { icon: 'ℹ️' });
+        closeModal();
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log("Redirecting to Edit Request API...");
       try {
         const res = await fetch('/api/edit-requests', {
@@ -481,15 +526,17 @@ export default function ProductDevelopmentPage() {
         });
 
         if (res.ok) {
-          alert("Perubahan telah diajukan ke Direktur untuk divalidasi.");
+          toast.success("Perubahan telah diajukan ke Direktur untuk divalidasi.");
           closeModal();
+          setIsSubmitting(false);
           return;
         } else {
           const err = await res.json();
           throw new Error(err.error || "Gagal mengajukan perubahan.");
         }
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message);
+        setIsSubmitting(false);
         return;
       }
     }
@@ -511,22 +558,38 @@ export default function ProductDevelopmentPage() {
           errorMsg = errorData.message || errorMsg;
         } catch (jsonErr) { }
         console.error(errorMsg);
-        alert(errorMsg);
+        toast.error(errorMsg);
       } // Corrected: Added missing closing brace for the else block
     } catch (error) {
       console.error("Error submitting product:", error);
-      alert(String(error.message));
+      toast.error(String(error.message));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = async (product) => {
     try {
       // Check for pending edits first
+      let hasPending = false;
       const checkRes = await fetch(`/api/edit-requests?targetId=${product.id}&targetType=product&status=pending`);
       if (checkRes.ok) {
         const pending = await checkRes.json();
-        setHasPendingEdit(pending.length > 0);
+        if (pending.length > 0) hasPending = true;
       }
+      
+      // Also check if its linked inquiry has a pending edit
+      if (product.type === 'Custom' && product.inquiry_code) {
+        const relatedInquiry = inquiries.find(inq => inq.inquiry_code === product.inquiry_code);
+        if (relatedInquiry) {
+          const checkInqRes = await fetch(`/api/edit-requests?targetId=${relatedInquiry.id}&targetType=inquiry&status=pending`);
+          if (checkInqRes.ok) {
+            const pendingInq = await checkInqRes.json();
+            if (pendingInq.length > 0) hasPending = true;
+          }
+        }
+      }
+      setHasPendingEdit(hasPending);
 
       const res = await fetch(`/api/products/${product.id}`);
       if (res.ok) {
@@ -578,16 +641,20 @@ export default function ProductDevelopmentPage() {
       }
     } catch (error) {
       console.error("Error in handleEdit:", error);
-      alert(String(error.message));
+      toast.error(String(error.message));
     }
   };
 
   const handleDelete = async (productId) => {
-    console.log("Attempting to delete product with ID:", productId); // Added log
+    console.log("Attempting to delete product with ID:", productId);
     if (!confirm('Are you sure you want to delete this product?')) return;
     try {
       const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
       if (res.ok) {
+        const data = await res.json();
+        if (data.message) {
+          toast.success(data.message);
+        }
         await fetchProducts();
       } else {
         let errorMsg = `Failed to delete. Status: ${res.status}`;
@@ -599,14 +666,59 @@ export default function ProductDevelopmentPage() {
       }
     } catch (err) {
       console.error("Error in handleDelete:", err);
-      alert(`Error: ${String(err.message)}`);
+      toast.error(`Kesalahan: ${String(err.message)}`);
     }
   };
 
   const getFilteredProducts = () => {
     let filtered = products.filter(p => {
       const isRejected = p.validation_status === 'rejected';
-      const matchesView = viewMode === 'rejected' ? isRejected : !isRejected;
+      const isCancelled = p.status?.toLowerCase() === 'cancelled';
+      const isCompleted = p.status?.toLowerCase() === 'completed' || p.status === 'Selesai' || p.status === 'Done' || p.status?.toLowerCase() === 'late done';
+      
+      // Calculate derived status
+      let derivedStatus = p.status || 'Ongoing';
+      if (isCancelled) {
+        derivedStatus = 'Cancelled';
+      } else if (isCompleted) {
+        const deadlineDate = p.deadline ? new Date(p.deadline) : null;
+        const completionDate = p.completed_at ? new Date(p.completed_at) : null;
+        if (deadlineDate && completionDate) {
+           deadlineDate.setHours(0,0,0,0);
+           completionDate.setHours(0,0,0,0);
+           derivedStatus = completionDate > deadlineDate ? 'Late Done' : 'Completed';
+        } else {
+           derivedStatus = 'Completed';
+        }
+      } else if (!isRejected) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deadlineDate = p.deadline ? new Date(p.deadline) : null;
+        if (deadlineDate) {
+          deadlineDate.setHours(0, 0, 0, 0);
+          if (deadlineDate < today) derivedStatus = 'Late';
+          else derivedStatus = 'Ongoing';
+        }
+      }
+
+      const is100Percent = Number(p.overallChecklistPercentage) === 100;
+      
+      let matchesView = false;
+      if (viewMode === 'rejected') {
+        matchesView = isRejected;
+      } else if (viewMode === 'completed') {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        const completionDate = p.completed_at ? new Date(p.completed_at) : null;
+        const isRecentlyFinished = isCompleted && completionDate && completionDate >= oneMonthAgo;
+        
+        matchesView = !isRejected && (isRecentlyFinished || is100Percent);
+      } else if (viewMode === 'cancelled') {
+        matchesView = isCancelled;
+      } else {
+        // upcoming
+        matchesView = !isRejected && !isCompleted && !isCancelled && !is100Percent && derivedStatus !== 'Late Done';
+      }
       
       const matchesSearch = 
         (p.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -649,23 +761,37 @@ export default function ProductDevelopmentPage() {
       <div className={styles.backButtonContainer}>
         <Link href="/dashboard" className={styles.backButton}><FaArrowLeft size={20} /><span>Back to Dashboard</span></Link>
       </div>
-      <div className={styles.titleContainer} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className={styles.titleContainer} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FaTools className={styles.titleIcon} />
           <h1 className={styles.title} style={{ marginBottom: 0 }}>Product Development</h1>
         </div>
-        <div className={styles.viewToggleGroup}>
+        
+        {/* TABBED INTERFACE */}
+        <div className={styles.tabGroup}>
           <button 
-            onClick={() => setViewMode('active')} 
-            className={`${styles.viewToggleBtn} ${viewMode === 'active' ? styles.active : ''}`}
+            onClick={() => setViewMode('upcoming')} 
+            className={`${styles.tabBtn} ${viewMode === 'upcoming' ? styles.activeTab : ''}`}
           >
-            <FaList /> Active
+            Upcoming Deadlines
+          </button>
+          <button 
+            onClick={() => setViewMode('completed')} 
+            className={`${styles.tabBtn} ${viewMode === 'completed' ? styles.activeTab : ''}`}
+          >
+            Recently Completed (1 Month)
+          </button>
+          <button 
+            onClick={() => setViewMode('cancelled')} 
+            className={`${styles.tabBtn} ${viewMode === 'cancelled' ? styles.activeTab : ''}`}
+          >
+            Cancelled
           </button>
           <button 
             onClick={() => setViewMode('rejected')} 
-            className={`${styles.viewToggleBtn} ${viewMode === 'rejected' ? styles.active : ''}`}
+            className={`${styles.tabBtn} ${viewMode === 'rejected' ? styles.activeTab : ''}`}
           >
-            <FaTimes /> Rejected
+            Rejected
           </button>
         </div>
       </div>
@@ -792,13 +918,17 @@ export default function ProductDevelopmentPage() {
                           <FaCheck size={8} /> Inquiry ACC
                         </span>
                       )}
-                      {product.validation_status === 'pending' && <span style={{fontSize: '0.65rem', backgroundColor: '#fef08a', color: '#854d0e', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold'}}>⏳ Pending</span>}
-                      {product.validation_status === 'approved' && <span style={{fontSize: '0.65rem', backgroundColor: '#dcfce7', color: '#166534', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold'}}>✅ Approved</span>}
-                      {product.validation_status === 'rejected' && <span style={{fontSize: '0.65rem', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold'}}>❌ Rejected</span>}
-                      
-                      {/* Check for pending edit requests */}
+                      {product.validation_status === 'pending' && <span style={{fontSize: '0.65rem', backgroundColor: '#fef08a', color: '#854d0e', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>⏳ Pending</span>}
+                      {product.validation_status === 'approved' && <span style={{fontSize: '0.65rem', backgroundColor: '#dcfce7', color: '#166534', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>✅ Approved</span>}
+                      {product.validation_status === 'rejected' && <span style={{fontSize: '0.65rem', backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>❌ Rejected</span>}
+                      {product.validation_status === 'pending_delete' && <span style={{fontSize: '0.65rem', backgroundColor: '#fee2e2', color: '#dc2626', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>🗑️ Menunggu Hapus</span>}
+                      {product.status?.toLowerCase() === 'late done' && (
+                        <span style={{fontSize: '0.65rem', backgroundColor: '#fff7ed', color: '#c2410c', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap', border: '1px solid #ffedd5'}}>
+                          ⚠️ Late Done
+                        </span>
+                      )}
                       {(() => {
-                        const hasPending = products.some(p => p.id === product.id && p.has_pending_edit);
+                        const hasPending = !!(products.some(p => p.id === product.id && p.has_pending_edit) || product.inquiry_has_pending_edit);
                         return hasPending && (
                           <span style={{ 
                             fontSize: "0.6rem", 
@@ -817,6 +947,25 @@ export default function ProductDevelopmentPage() {
                           </span>
                         );
                       })()}
+
+                      {product.status === 'cancelled' && (
+                        <span style={{
+                          fontSize: "0.6rem",
+                          backgroundColor: "#fef2f2",
+                          color: "#991b1b",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontWeight: "800",
+                          border: "1px solid #fecaca",
+                          textTransform: "uppercase",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          marginLeft: "4px"
+                        }}>
+                          🚫 Cancelled
+                        </span>
+                      )}
                     </div>
                       {/* Catatan dari Tahap Inquiry */}
                       {product.type === 'Custom' && product.inquiry_validation_notes && (
@@ -877,8 +1026,20 @@ export default function ProductDevelopmentPage() {
                 {(isAdmin || isDirektur) && (
                   <td className={styles.actionButtons}>
                     <div className={styles.actionGroup}>
-                      <button onClick={(e) => { e.stopPropagation(); handleEdit(product); }}><FaEdit /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}><FaTrash /></button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleEdit(product); }}
+                        disabled={product.validation_status === 'pending' || product.validation_status === 'pending_delete' || products.some(p => p.id === product.id && p.has_pending_edit) || product.inquiry_has_pending_edit || product.status === 'cancelled'}
+                        style={(product.validation_status === 'pending' || product.validation_status === 'pending_delete' || products.some(p => p.id === product.id && p.has_pending_edit) || product.inquiry_has_pending_edit || product.status === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                      >
+                        <FaEdit />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}
+                        disabled={product.validation_status === 'pending' || product.validation_status === 'pending_delete' || products.some(p => p.id === product.id && p.has_pending_edit) || product.inquiry_has_pending_edit || product.status === 'cancelled'}
+                        style={(product.validation_status === 'pending' || product.validation_status === 'pending_delete' || products.some(p => p.id === product.id && p.has_pending_edit) || product.inquiry_has_pending_edit || product.status === 'cancelled') ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   </td>
                 )}
@@ -911,6 +1072,24 @@ export default function ProductDevelopmentPage() {
                 }}>
                   <FaTimes />
                   <span>Produk Custom hanya bisa dibuat jika Inquiry sudah di-ACC oleh Direktur.</span>
+                </div>
+              )}
+
+              {productType === 'Custom' && formData.inquiry_code && inquiries.find(inq => inq.inquiry_code === formData.inquiry_code)?.has_pending_edit && (
+                <div style={{ 
+                  backgroundColor: '#eff6ff', 
+                  border: '1px solid #3b82f6', 
+                  color: '#1e40af', 
+                  padding: '0.75rem', 
+                  borderRadius: '8px', 
+                  marginBottom: '1rem', 
+                  fontSize: '0.85rem', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem' 
+                }}>
+                  <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold' }}>PENDING</div>
+                  <span>Inquiry ini sedang dalam proses validasi edit oleh Direktur. Harap tunggu sampai selesai sebelum membuat produk.</span>
                 </div>
               )}
               <form onSubmit={handleSubmit}>
@@ -965,10 +1144,10 @@ export default function ProductDevelopmentPage() {
                           <option 
                             key={inquiry.id} 
                             value={inquiry.inquiry_code}
-                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'rejected'}
+                            disabled={inquiry.validation_status === 'pending' || inquiry.validation_status === 'rejected' || inquiry.has_pending_edit}
                           >
                             {inquiry.inquiry_code} - {inquiry.customer_name} ({inquiry.product_name || 'Tanpa Nama Produk'}) 
-                            {inquiry.validation_status === 'pending' ? ' (Menunggu Approval)' : inquiry.validation_status === 'rejected' ? ' (Ditolak)' : ''}
+                            {inquiry.validation_status === 'pending' ? ' (Menunggu Approval)' : inquiry.validation_status === 'rejected' ? ' (Ditolak)' : inquiry.has_pending_edit ? ' (Edit Pending)' : ''}
                           </option>
                         ))}
                       </select>
@@ -976,35 +1155,35 @@ export default function ProductDevelopmentPage() {
                   </div>
                 )}
                 <div className={styles.formGroup}>
-                  <label>Category</label>
-                  <select name="category" value={formData.category || ""} onChange={handleInputChange}>
+                  <label>Category <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select name="category" value={formData.category || ""} onChange={handleInputChange} required>
                     <option value="">Select Category</option>
                     <option value="storage">Storage</option>
                     <option value="decorative">Decorative</option>
                     <option value="table top">Table Top</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}><label>Description</label><textarea name="description" value={formData.description || ""} onChange={handleInputChange}></textarea></div>
                 {productType === 'Custom' && (
-                  <>
-                    <div className={styles.formGroup}>
-                      <label>Customer Request</label>
-                      <textarea name="customer_request" value={formData.customer_request} onChange={handleInputChange}></textarea>
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label>Order Quantity</label>
-                      <input 
-                        type="number" 
-                        name="order_quantity" 
-                        value={formData.order_quantity || ""} 
-                        onChange={handleInputChange} 
-                        placeholder="0"
-                        required 
-                      />
-                    </div>
-                  </>
+                  <div className={styles.formGroup}>
+                    <label>Customer Request</label>
+                    <textarea name="customer_request" value={formData.customer_request} onChange={handleInputChange}></textarea>
+                  </div>
                 )}
-                <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required /></div>
+                <div className={styles.formGroup}>
+                  <label>Order Quantity</label>
+                  <input 
+                    type="number" 
+                    name="order_quantity" 
+                    value={formData.order_quantity || "1"} 
+                    onChange={handleInputChange} 
+                    placeholder="1"
+                    min="1"
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}><label>Start Date</label><input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} min={formData.id ? undefined : new Date().toISOString().split('T')[0]} required /></div>
                 <div className={styles.formGroup}>
                   <label>Deadline</label>
                   <input 
@@ -1041,39 +1220,14 @@ export default function ProductDevelopmentPage() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <h3>Custom Attributes</h3>
-                  <button type="button" onClick={handleAddAttribute} className={styles.addButton} style={{ marginBottom: '10px' }}>+ Add Field</button>
-                  {formData.custom_attributes && formData.custom_attributes.map((attr, index) => (
-                    <div key={index} className={styles.attributeRow}>
-                      <input
-                        type="text"
-                        placeholder="Field Name"
-                        value={attr.key}
-                        onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
-                        className={styles.attributeInput}
-                      />
-                      <span className={styles.attributeSeparator}>:</span>
-                      <input
-                        type="text"
-                        placeholder="Value"
-                        value={attr.value}
-                        onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
-                        className={styles.attributeInput}
-                      />
-                      <button type="button" onClick={() => handleRemoveAttribute(index)} className={styles.modernListDeleteBtn}><FaTrash /></button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <h3>Add New Supplier</h3>
+                  <h3>Tambah Supplier Baru</h3>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                     <select
                       value={selectedMaterialId}
                       onChange={e => setSelectedMaterialId(e.target.value)}
                       style={{ flex: 2 }}
                     >
-                      <option value="">-- Select Supplier --</option>
+                      <option value="">-- Pilih Supplier --</option>
                       {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                     <button type="button" onClick={handleAddMaterial} className={styles.addButton}><FaPlus /></button>
@@ -1108,12 +1262,12 @@ export default function ProductDevelopmentPage() {
                               }));
                             
                             if (newTasks.length === 0 && template.tasks.length > 0) {
-                              alert("Semua rincian tugas dari template ini sudah ada di dalam daftar.");
+                              toast.error("Semua rincian tugas dari template ini sudah ada di dalam daftar.");
                               return;
                             }
 
                             if (newTasks.length < template.tasks.length) {
-                              alert(`${template.tasks.length - newTasks.length} tugas yang sudah ada dilewati agar tidak duplikat.`);
+                              toast.success(`${template.tasks.length - newTasks.length} tugas yang sudah ada dilewati agar tidak duplikat.`);
                             }
 
                             setFormData(prev => ({
@@ -1177,8 +1331,25 @@ export default function ProductDevelopmentPage() {
                   <button 
                     type="submit" 
                     className={styles.saveButton}
+                    disabled={
+                      isSubmitting ||
+                      (productType === 'Custom' && formData.inquiry_code && inquiries.find(inq => inq.inquiry_code === formData.inquiry_code)?.validation_status !== 'approved') ||
+                      (productType === 'Custom' && formData.inquiry_code && inquiries.find(inq => inq.inquiry_code === formData.inquiry_code)?.has_pending_edit) ||
+                      hasPendingEdit || 
+                      (formData.id && products.find(p => p.id === formData.id)?.validation_status === 'pending') ||
+                      (formData.id && products.find(p => p.id === formData.id)?.validation_status === 'pending_delete')
+                    }
+                    style={
+                      (isSubmitting ||
+                      (productType === 'Custom' && formData.inquiry_code && inquiries.find(inq => inq.inquiry_code === formData.inquiry_code)?.validation_status !== 'approved') ||
+                      (productType === 'Custom' && formData.inquiry_code && inquiries.find(inq => inq.inquiry_code === formData.inquiry_code)?.has_pending_edit) ||
+                      hasPendingEdit || 
+                      (formData.id && products.find(p => p.id === formData.id)?.validation_status === 'pending') ||
+                      (formData.id && products.find(p => p.id === formData.id)?.validation_status === 'pending_delete'))
+                        ? { opacity: 0.5, cursor: 'not-allowed' } : {}
+                    }
                   >
-                    Save
+                    {isSubmitting ? 'Menyimpan...' : 'Save'}
                   </button>
                 </div>
               </form>

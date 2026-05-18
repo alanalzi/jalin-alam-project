@@ -4,6 +4,17 @@ import createConnection from '@/app/lib/db';
 import { getToken } from "next-auth/jwt";
 
 export async function GET() {
+  const formatLocalYYYYMMDD = (d) => {
+    if (!d) return null;
+    if (typeof d === 'string') return d.split('T')[0];
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return null;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   let connection;
   try {
     connection = await createConnection();
@@ -26,10 +37,15 @@ export async function GET() {
         i.validation_status,
         i.validation_notes,
         p.id AS product_id,
-        p.status AS product_status,
+        CASE 
+          WHEN p.status IN ('Done', 'Selesai', 'completed') AND p.completed_at > p.deadline THEN 'Late Done'
+          ELSE p.status 
+        END AS product_status,
         p.validation_status AS product_validation_status,
         GROUP_CONCAT(DISTINCT ii.image_url ORDER BY ii.id ASC) AS images,
-        GROUP_CONCAT(DISTINCT CONCAT(ia.user_id, '|', u.name)) AS assigneesData
+        GROUP_CONCAT(DISTINCT CONCAT(ia.user_id, '|', u.name)) AS assigneesData,
+        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = p.id AND er.target_type = 'product' AND er.status = 'pending') as product_has_pending_edit,
+        EXISTS(SELECT 1 FROM edit_requests er WHERE er.target_id = i.id AND er.target_type = 'inquiry' AND er.status = 'pending') as has_pending_edit
       FROM
         inquiries i
       LEFT JOIN
@@ -47,11 +63,15 @@ export async function GET() {
     
     const inquiries = rows.map(row => ({
       ...row,
+      request_date: formatLocalYYYYMMDD(row.request_date),
+      image_deadline: formatLocalYYYYMMDD(row.image_deadline),
       images: row.images ? row.images.split(',') : [],
       assignees: row.assigneesData ? row.assigneesData.split(',').map(s => {
         const [id, name] = s.split('|');
         return { id: parseInt(id), name };
       }) : [],
+      product_has_pending_edit: !!row.product_has_pending_edit,
+      has_pending_edit: !!row.has_pending_edit
     }));
 
     return NextResponse.json(inquiries);
@@ -91,11 +111,26 @@ export async function POST(req) {
   const finalImageDeadline = image_deadline ? image_deadline : null;
 
   try {
-    if (!customer_name || !product_name || !request_date || !order_quantity) {
-      return NextResponse.json({ message: 'Customer Name, Product Name, Request Date, and Order Quantity are required' }, { status: 400 });
+    if (!customer_name || !product_name || !request_date || !order_quantity || parseInt(order_quantity) < 1 || !assignee_ids || assignee_ids.length === 0) {
+      return NextResponse.json({ message: 'Customer Name, Product Name, Request Date, Order Quantity (min 1), and at least one Assignee are required' }, { status: 400 });
+    }
+
+    // Date Validation
+    if (image_deadline && new Date(image_deadline) < new Date(request_date)) {
+      return NextResponse.json({ message: 'Target Deadline tidak boleh sebelum Tanggal Request.' }, { status: 400 });
     }
 
     connection = await createConnection();
+
+    // Prevent Duplicates (check if same customer + product created in last 1 hour)
+    const [recent] = await connection.execute(
+      "SELECT id FROM inquiries WHERE customer_name = ? AND product_name = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)",
+      [customer_name, product_name]
+    );
+    if (recent.length > 0) {
+      return NextResponse.json({ message: 'Inquiry serupa baru saja dibuat. Harap cek kembali untuk menghindari data ganda.' }, { status: 409 });
+    }
+
     await connection.beginTransaction();
 
     if (!inquiry_code) {

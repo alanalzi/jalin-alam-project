@@ -4,7 +4,19 @@ import createConnection from '@/app/lib/db';
 import { getToken } from "next-auth/jwt";
 
 export async function GET(request, context) {
+  const formatLocalYYYYMMDD = (d) => {
+    if (!d) return null;
+    if (typeof d === 'string') return d.split('T')[0];
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return null;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const id = (await Promise.resolve(context.params)).id;
+  console.log('GET /api/products/[id] called for ID:', id, 'Path:', request.nextUrl.pathname);
 
   if (!id) {
     return NextResponse.json({ message: 'Product ID is required' }, { status: 400 });
@@ -16,7 +28,7 @@ export async function GET(request, context) {
 
     // Fetch the base product to determine its type
     const [productRows] = await connection.execute(
-      `SELECT id, inquiry_code, category, status, type, start_date AS startDate, deadline, completed_at, validation_status FROM products WHERE id = ?`,
+      `SELECT id, inquiry_code, category, status, type, start_date AS startDate, deadline, completed_at, validation_status, order_quantity FROM products WHERE id = ?`,
       [id]
     );
 
@@ -50,8 +62,8 @@ export async function GET(request, context) {
         // Map inquiry data to the product object, prioritizing already saved product dates
         product.name = inquiryData.product_name;
         product.description = inquiryData.product_description;
-        product.startDate = product.startDate || inquiryData.request_date;
-        product.deadline = product.deadline || inquiryData.image_deadline;
+        product.startDate = formatLocalYYYYMMDD(product.startDate) || formatLocalYYYYMMDD(inquiryData.request_date);
+        product.deadline = formatLocalYYYYMMDD(product.deadline) || formatLocalYYYYMMDD(inquiryData.image_deadline);
         product.customer_request = inquiryData.customer_request;
         product.order_quantity = inquiryData.order_quantity;
         product.images = inquiryData.images ? inquiryData.images.split(',') : [];
@@ -64,7 +76,7 @@ export async function GET(request, context) {
     } else {
       // For 'New Product' or other types, get data from the products table itself
       const [fullProductRows] = await connection.execute(
-        `SELECT name, description, start_date AS startDate, deadline, custom_attributes, validation_status FROM products WHERE id = ?`,
+        `SELECT name, description, start_date AS startDate, deadline, custom_attributes, validation_status, order_quantity FROM products WHERE id = ?`,
         [id]
       );
       if (fullProductRows.length > 0) {
@@ -78,6 +90,8 @@ export async function GET(request, context) {
           }
         }
         Object.assign(product, productData);
+        product.startDate = formatLocalYYYYMMDD(product.startDate);
+        product.deadline = formatLocalYYYYMMDD(product.deadline);
       }
 
       // Fetch images from the product_images table
@@ -92,12 +106,16 @@ export async function GET(request, context) {
     );
     product.checklist = checklistRows;
 
-    // Calculate overall checklist percentage
+    // Calculate checklist statistics
     if (checklistRows.length > 0) {
       const totalPercentage = checklistRows.reduce((sum, row) => sum + (row.percentage || 0), 0);
       product.overallChecklistPercentage = Math.round(totalPercentage / checklistRows.length);
+      product.total_tasks = checklistRows.length;
+      product.completed_tasks = checklistRows.filter(row => (row.percentage || 0) === 100).length;
     } else {
       product.overallChecklistPercentage = 0;
+      product.total_tasks = 0;
+      product.completed_tasks = 0;
     }
 
 
@@ -159,7 +177,9 @@ export async function PUT(request, context) {
     requiredMaterials,
     images,
     custom_attributes,
-    assignee_ids
+    assignee_ids,
+    order_quantity,
+    customer_request
   } = await request.json();
   
   const token = await getToken({ req: request });
@@ -176,6 +196,42 @@ export async function PUT(request, context) {
   let connection;
   try {
     connection = await createConnection();
+
+    // BACKEND GUARD: Check if the product is locked (pending validation or pending edit)
+    const [lockRows] = await connection.execute(
+      `SELECT validation_status, inquiry_code FROM products WHERE id = ?`,
+      [id]
+    );
+    
+    if (lockRows.length > 0) {
+      const p = lockRows[0];
+      if (p.validation_status === 'pending' || p.validation_status === 'pending_delete') {
+         return NextResponse.json({ message: 'Produk sedang dalam proses validasi. Perubahan tidak diizinkan.' }, { status: 403 });
+      }
+      
+      // Check for pending edit requests for this product
+      const [pendingEdits] = await connection.execute(
+        `SELECT id FROM edit_requests WHERE target_id = ? AND target_type = 'product' AND status = 'pending'`,
+        [id]
+      );
+      if (pendingEdits.length > 0) {
+        return NextResponse.json({ message: 'Produk sedang dalam proses pengajuan edit. Tunggu validasi Direktur.' }, { status: 403 });
+      }
+
+      // Also check related inquiry if it's a custom product
+      if (p.inquiry_code) {
+        const [pendingInqEdits] = await connection.execute(
+          `SELECT er.id FROM edit_requests er 
+           JOIN inquiries i ON er.target_id = i.id 
+           WHERE i.inquiry_code = ? AND er.target_type = 'inquiry' AND er.status = 'pending'`,
+          [p.inquiry_code]
+        );
+        if (pendingInqEdits.length > 0) {
+          return NextResponse.json({ message: 'Inquiry terkait sedang dalam proses pengajuan edit. Produk dikunci sementara.' }, { status: 403 });
+        }
+      }
+    }
+
     await connection.beginTransaction();
 
     const [currentProductRows] = await connection.execute('SELECT * FROM products WHERE id = ?', [id]);
@@ -231,11 +287,47 @@ export async function PUT(request, context) {
       fieldsToUpdate.push('custom_attributes = ?');
       values.push(JSON.stringify(custom_attributes));
     }
+    if (order_quantity !== undefined) {
+      fieldsToUpdate.push('order_quantity = ?');
+      values.push(parseInt(order_quantity) || 0);
+    }
 
     if (fieldsToUpdate.length > 0) {
       const updateProductQuery = `UPDATE products SET ${fieldsToUpdate.join(', ')} WHERE id = ?`;
       await connection.execute(updateProductQuery, [...values, id]);
       console.log('Product details updated for ID:', id);
+    }
+
+    // --- Sync to Inquiries table if this is a custom product ---
+    const finalInquiryCode = inquiry_code !== undefined ? inquiry_code : currentProduct.inquiry_code;
+    if (finalInquiryCode) {
+      const inquiryFields = [];
+      const inquiryValues = [];
+      
+      if (order_quantity !== undefined) {
+        inquiryFields.push('order_quantity = ?');
+        inquiryValues.push(parseInt(order_quantity) || 0);
+      }
+      if (customer_request !== undefined) {
+        inquiryFields.push('customer_request = ?');
+        inquiryValues.push(customer_request === '' ? null : customer_request);
+      }
+      if (startDate !== undefined) {
+        inquiryFields.push('request_date = ?');
+        inquiryValues.push(startDate === '' ? null : startDate);
+      }
+      if (deadline !== undefined) {
+        inquiryFields.push('image_deadline = ?');
+        inquiryValues.push(deadline === '' ? null : deadline);
+      }
+      
+      if (inquiryFields.length > 0) {
+        await connection.execute(
+          `UPDATE inquiries SET ${inquiryFields.join(', ')} WHERE inquiry_code = ?`,
+          [...inquiryValues, finalInquiryCode]
+        );
+        console.log(`Synced fields to Inquiry: ${finalInquiryCode}`);
+      }
     }
 
 
@@ -301,6 +393,15 @@ export async function PUT(request, context) {
           );
         }
       }
+
+      // 6. Automated Audit Log for checklist update
+      const totalPercentage = checklist.reduce((sum, row) => sum + (parseInt(row.percentage) || 0), 0);
+      const avgPercentage = Math.round(totalPercentage / checklist.length);
+      
+      await connection.execute(
+        'INSERT INTO product_progress_logs (product_id, comment, user_id) VALUES (?, ?, ?)',
+        [id, `Automated Update: Production checklist progress updated to ${avgPercentage}% average.`, token.id]
+      );
     }
 
     // --- Update requiredMaterials if provided ---
@@ -394,9 +495,18 @@ export async function DELETE(request, context) {
     connection = await createConnection();
     await connection.beginTransaction();
 
+    if (token.role === 'admin') {
+      // For admin, request deletion
+      await connection.execute(`UPDATE products SET validation_status = 'pending_delete' WHERE id = ?`, [id]);
+      await connection.commit();
+      return NextResponse.json({ message: 'Permintaan hapus dikirim ke Direktur untuk persetujuan' }, { status: 200 });
+    }
+
+    // For direktur, perform direct deletion
     await connection.execute('DELETE FROM product_images WHERE product_id = ?', [id]);
     await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [id]);
     await connection.execute('DELETE FROM product_materials WHERE product_id = ?', [id]);
+    await connection.execute('DELETE FROM product_assignees WHERE product_id = ?', [id]);
     const [result] = await connection.execute('DELETE FROM products WHERE id = ?', [id]);
 
     await connection.commit();

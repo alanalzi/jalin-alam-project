@@ -4,6 +4,17 @@ import createConnection from '@/app/lib/db';
 import { getToken } from "next-auth/jwt";
 
 export async function GET(request, context) {
+  const formatLocalYYYYMMDD = (d) => {
+    if (!d) return null;
+    if (typeof d === 'string') return d.split('T')[0];
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return null;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const id = (await Promise.resolve(context.params)).id;
 
   if (!id) {
@@ -51,6 +62,8 @@ export async function GET(request, context) {
     }
     const inquiry = rows.map(row => ({
       ...row,
+      request_date: formatLocalYYYYMMDD(row.request_date),
+      image_deadline: formatLocalYYYYMMDD(row.image_deadline),
       images: row.images ? row.images.split(',') : [],
       assignees: row.assigneesData ? row.assigneesData.split(',').map(s => {
         const [id, name] = s.split('|');
@@ -100,6 +113,46 @@ export async function PUT(request, context) {
   let connection;
   try {
     connection = await createConnection();
+
+    // BACKEND GUARD: Check if the inquiry is locked
+    const [lockRows] = await connection.execute(
+      `SELECT validation_status, inquiry_code FROM inquiries WHERE id = ?`,
+      [id]
+    );
+
+    if (lockRows.length > 0) {
+      const inq = lockRows[0];
+      if (inq.validation_status === 'pending' || inq.validation_status === 'pending_delete') {
+         return NextResponse.json({ message: 'Inquiry sedang dalam proses validasi. Perubahan tidak diizinkan.' }, { status: 403 });
+      }
+
+      // Check for pending edit requests for this inquiry
+      const [pendingEdits] = await connection.execute(
+        `SELECT id FROM edit_requests WHERE target_id = ? AND target_type = 'inquiry' AND status = 'pending'`,
+        [id]
+      );
+      if (pendingEdits.length > 0) {
+        return NextResponse.json({ message: 'Inquiry sedang dalam proses pengajuan edit. Tunggu validasi Direktur.' }, { status: 403 });
+      }
+
+      // Also check related product if it exists
+      if (inq.inquiry_code) {
+        const [pendingProdEdits] = await connection.execute(
+          `SELECT er.id FROM edit_requests er 
+           JOIN products p ON er.target_id = p.id 
+           WHERE p.inquiry_code = ? AND er.target_type = 'product' AND er.status = 'pending'`,
+          [inq.inquiry_code]
+        );
+        if (pendingProdEdits.length > 0) {
+          return NextResponse.json({ message: 'Produk terkait sedang dalam proses pengajuan edit. Inquiry dikunci sementara.' }, { status: 403 });
+        }
+      }
+    }
+
+    if (!customer_name || !product_name || !request_date || !order_quantity || parseInt(order_quantity) < 1 || !assignee_ids || assignee_ids.length === 0) {
+      return NextResponse.json({ message: 'Customer Name, Product Name, Request Date, Order Quantity (min 1), and at least one Assignee are required' }, { status: 400 });
+    }
+
     await connection.beginTransaction(); // Start transaction
 
     // Get the old assignee_id to prevent duplicate notifications
@@ -188,13 +241,44 @@ export async function DELETE(request, context) {
     connection = await createConnection();
     await connection.beginTransaction(); // Start transaction
 
+    if (token.role === 'admin') {
+      // For admin, request deletion
+      await connection.execute(`UPDATE inquiries SET validation_status = 'pending_delete' WHERE id = ?`, [id]);
+      
+      const [inq] = await connection.execute('SELECT inquiry_code FROM inquiries WHERE id = ?', [id]);
+      if (inq.length > 0) {
+          await connection.execute(`UPDATE products SET validation_status = 'pending_delete' WHERE inquiry_code = ?`, [inq[0].inquiry_code]);
+      }
+      await connection.commit();
+      return NextResponse.json({ message: 'Permintaan hapus dikirim ke Direktur untuk persetujuan' });
+    }
+
+    // For direktur, perform direct deletion
+    // Get inquiry code before deletion to find the product
+    const [inqRows] = await connection.execute('SELECT inquiry_code FROM inquiries WHERE id = ?', [id]);
+    
     // Delete associated images first
     await connection.execute('DELETE FROM inquiry_images WHERE inquiry_id = ?', [id]);
+    await connection.execute('DELETE FROM inquiry_assignees WHERE inquiry_id = ?', [id]);
 
     const [result] = await connection.execute(
       'DELETE FROM inquiries WHERE id = ?',
       [id]
     );
+
+    // Also delete product if it exists
+    if (inqRows.length > 0) {
+      const inquiryCode = inqRows[0].inquiry_code;
+      const [prodRows] = await connection.execute('SELECT id FROM products WHERE inquiry_code = ?', [inquiryCode]);
+      for (const prod of prodRows) {
+        const prodId = prod.id;
+        await connection.execute('DELETE FROM product_images WHERE product_id = ?', [prodId]);
+        await connection.execute('DELETE FROM product_checklists WHERE product_id = ?', [prodId]);
+        await connection.execute('DELETE FROM product_materials WHERE product_id = ?', [prodId]);
+        await connection.execute('DELETE FROM product_assignees WHERE product_id = ?', [prodId]);
+        await connection.execute('DELETE FROM products WHERE id = ?', [prodId]);
+      }
+    }
 
     await connection.commit(); // Commit transaction
 
@@ -202,9 +286,10 @@ export async function DELETE(request, context) {
       return NextResponse.json({ message: 'Inquiry not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Inquiry deleted successfully' });
+    return NextResponse.json({ message: 'Inquiry and related data deleted successfully' });
 
   } catch (error) {
+    if (connection) await connection.rollback();
     console.error('Database query failed during DELETE:', error);
     return NextResponse.json({ message: 'Failed to delete inquiry', error: error.message }, { status: 500 });
   } finally {

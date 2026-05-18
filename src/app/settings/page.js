@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
-import { FaTasks, FaRoute, FaUserCog, FaDatabase, FaArrowRight, FaArrowLeft } from "react-icons/fa";
+import { FaTasks, FaRoute, FaUserCog, FaDatabase, FaArrowRight, FaCalendarAlt } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import styles from "./settings.module.css";
 
 const SETTINGS_CARDS = [
@@ -20,6 +21,14 @@ const SETTINGS_CARDS = [
     icon: <FaTasks />,
     link: '/settings/checklists',
     label: 'Manage Templates'
+  },
+  {
+    id: 'holidays',
+    title: 'Holidays Management',
+    description: 'Set up national holidays and non-working days to calculate production deadlines more accurately.',
+    icon: <FaCalendarAlt />,
+    link: '/settings/holidays',
+    label: 'Manage Holidays'
   },
   {
     id: 'roles',
@@ -63,6 +72,18 @@ const itemVariants = {
 };
 
 export default function SettingsHubPage() {
+  const { data: session } = useSession();
+  const userRole = session?.user?.role?.toLowerCase();
+
+  // Filter cards based on role
+  // Hide Workflow Statuses and System Maintenance for Direktur
+  const visibleCards = SETTINGS_CARDS.filter(card => {
+    if (userRole === 'direktur') {
+      return card.id !== 'statuses' && card.id !== 'system';
+    }
+    return true;
+  });
+
   return (
     <div className={styles.container}>
       <motion.header 
@@ -81,7 +102,7 @@ export default function SettingsHubPage() {
         initial="hidden"
         animate="visible"
       >
-        {SETTINGS_CARDS.map((card) => (
+        {visibleCards.map((card) => (
           <motion.div key={card.id} variants={itemVariants}>
             <Link href={card.link} className={styles.card}>
               <div className={styles.iconWrapper}>
